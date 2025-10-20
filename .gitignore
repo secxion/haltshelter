@@ -71,3 +71,9 @@ Thumbs.db
 /admin/dist/
 /admin/temp/
 /admin/tmp/
+
+# local env and large files
+.env
+stripe-cli.zip
+admin/node_modules/
+
