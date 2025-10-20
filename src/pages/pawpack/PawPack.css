@@ -1,0 +1,87 @@
+.pawpack-landing {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+.pawpack-landing h1 {
+  color: #e67e22;
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+.pawpack-landing .subtitle {
+  color: #888;
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+}
+.pawpack-landing section {
+  margin-bottom: 2.5rem;
+}
+.pawpack-landing ul {
+  list-style: disc inside;
+  margin: 1rem 0 0 1rem;
+}
+.pawpack-landing .testimonials {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.pawpack-landing .testimonial {
+  background: #f9f6f2;
+  border-left: 4px solid #e67e22;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.pawpack-landing .testimonial img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.pawpack-landing blockquote {
+  font-style: italic;
+  margin: 0;
+}
+.pawpack-landing cite {
+  display: block;
+  margin-top: 0.5rem;
+  color: #888;
+  font-size: 0.95rem;
+}
+.pawpack-landing .signup {
+  background: #f4f8fb;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+}
+.pawpack-newsletter-form {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.pawpack-newsletter-form input[type="email"] {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+.pawpack-newsletter-form button {
+  background: #e67e22;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.pawpack-newsletter-form button:hover {
+  background: #cf711f;
+}

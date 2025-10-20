@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Stories API</title>
+</head>
+<body>
+    <h1>Stories API Test</h1>
+    <div id="result"></div>
+    
+    <script>
+        fetch('http://localhost:5000/api/stories')
+            .then(response => response.json())
+            .then(data => {
+                console.log('API Response:', data);
+                document.getElementById('result').innerHTML = 
+                    `<h2>Found ${data.data.length} stories:</h2>
+                     <ul>
+                        ${data.data.map(story => `<li><strong>${story.title}</strong> - ${story.category}</li>`).join('')}
+                     </ul>`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = 'Error fetching stories: ' + error.message;
+            });
+    </script>
+</body>
+</html>

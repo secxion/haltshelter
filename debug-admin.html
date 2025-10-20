@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Admin Panel API</title>
+</head>
+<body>
+    <h1>Admin Panel API Debug</h1>
+    <div id="result"></div>
+    
+    <script>
+        fetch('http://localhost:5000/api/stories')
+            .then(response => response.json())
+            .then(data => {
+                console.log('API Response:', data);
+                document.getElementById('result').innerHTML = 
+                    `<h2>API Response Structure:</h2>
+                     <pre>${JSON.stringify(data, null, 2)}</pre>
+                     <h2>Stories Count: ${data.data ? data.data.length : 'No data'}</h2>
+                     <h2>Categories Found:</h2>
+                     <ul>
+                        ${data.data ? data.data.map(story => `<li><strong>${story.title}</strong> - Category: "${story.category}"</li>`).join('') : 'No stories'}
+                     </ul>`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = 'Error fetching stories: ' + error.message;
+            });
+    </script>
+</body>
+</html>

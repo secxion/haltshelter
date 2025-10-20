@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        img { max-width: 300px; margin: 10px; border: 1px solid #ccc; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Image Loading Test</h1>
+    
+    <div class="test-result">
+        <h3>Test 1: Direct Full URL</h3>
+        <img src="http://localhost:5000/uploads/images/story-1758444259359-898883984.jpg" 
+             alt="Test Image 1"
+             onload="console.log('Image 1 loaded')"
+             onerror="console.error('Image 1 failed')">
+    </div>
+    
+    <div class="test-result">
+        <h3>Test 2: Relative URL (should fail)</h3>
+        <img src="/uploads/images/story-1758444259359-898883984.jpg" 
+             alt="Test Image 2"
+             onload="console.log('Image 2 loaded')"
+             onerror="console.error('Image 2 failed')">
+    </div>
+    
+    <div class="test-result">
+        <h3>Test 3: Fetch Test</h3>
+        <button onclick="testFetch()">Test Fetch</button>
+        <div id="fetch-result"></div>
+    </div>
+
+    <script>
+        function testFetch() {
+            const resultDiv = document.getElementById('fetch-result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            fetch('http://localhost:5000/uploads/images/story-1758444259359-898883984.jpg')
+                .then(response => {
+                    console.log('Fetch response:', response);
+                    if (response.ok) {
+                        resultDiv.innerHTML = `✅ Fetch successful! Status: ${response.status}`;
+                    } else {
+                        resultDiv.innerHTML = `❌ Fetch failed! Status: ${response.status}`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    resultDiv.innerHTML = `❌ Fetch error: ${error.message}`;
+                });
+        }
+    </script>
+</body>
+</html>
