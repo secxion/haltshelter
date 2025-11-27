@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { HeartIcon, UserGroupIcon, TruckIcon, HomeIcon, CameraIcon, MegaphoneIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { apiService, handleApiError } from '../services/api';
 
@@ -191,12 +192,12 @@ export default function Volunteer() {
               >
                 Submit Another Application
               </button>
-              <a
-                href="/"
+              <Link
+                to="/"
                 className="border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white font-bold py-3 px-6 rounded-lg transition-colors text-center"
               >
                 Return to Homepage
-              </a>
+              </Link>
             </div>
           </div>
         </div>

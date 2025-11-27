@@ -7,6 +7,15 @@ const { logToFile } = require('../utils/fileLogger');
 
 const router = express.Router();
 
+// Get count of completed donations (admin/staff only)
+router.get('/count', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const count = await Donation.countDocuments({ paymentStatus: 'completed' });
+    res.json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // Create Stripe subscription for monthly donations
 router.post('/create-subscription', [
@@ -258,8 +267,20 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
         paymentIntent = event.data.object;
       } else {
         invoice = event.data.object;
+        // Some webhook event types (e.g. invoice_payment.paid) send an invoice_payment
+        // wrapper which contains only a reference to the invoice id. If that's the case
+        // fetch the full invoice so we can access customer/customer_email and metadata.
+        try {
+          if (invoice && invoice.object === 'invoice_payment' && invoice.invoice) {
+            const fetched = await stripe.invoices.retrieve(invoice.invoice);
+            invoice = fetched;
+          }
+        } catch (e) {
+          logToFile(`[DIAG] Could not retrieve full invoice for wrapper object: ${e}`);
+        }
+
         // For invoice events, get PaymentIntent from invoice.payment_intent
-        if (invoice.payment_intent) {
+        if (invoice && invoice.payment_intent) {
           try {
             paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent);
           } catch (e) {
@@ -468,19 +489,30 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
                   <p>With gratitude,<br/>The HALT Team</p>
                 `;
                 const text = `Dear ${donorName},\n\nThank you for your generous donation to HALT. Here are your donation details:\n\nDonor Name: ${donorName}\nDonor Email: ${donorEmail}\nAmount: $${amount} ${currency}\nDonation Type: ${donationType.charAt(0).toUpperCase() + donationType.slice(1)}\nPayment Method: ${paymentMethodStr}\nTransaction ID: ${transactionId}\nDate: ${dateStr} UTC\nCategory: ${category}\nRecurring: ${recurringStr}\n\nYour support helps us continue our mission to help animals live and thrive.\n\nWith gratitude,\nThe HALT Team`;
-                await sendReceiptEmail({
+                const info = await sendReceiptEmail({
                   to: donorEmail,
                   subject,
                   html,
                   text
                 });
-                const sentMsg = `[DIAG] Receipt email sent to ${donorEmail}`;
+                const sentMsg = `[DIAG] Receipt email sent to ${donorEmail} (accepted: ${JSON.stringify(info.accepted)}, rejected: ${JSON.stringify(info.rejected)})`;
                 console.log(sentMsg);
                 logToFile(sentMsg);
+
+                // Mark donation as having received a receipt to avoid duplicate sends
+                try {
+                  donation.receiptSent = true;
+                  donation.receiptSentAt = new Date();
+                  await donation.save();
+                  logToFile(`[DIAG] Marked donation ${donation._id} as receiptSent`);
+                } catch (markErr) {
+                  logToFile(`[DIAG] Failed to mark donation receiptSent: ${markErr}`);
+                }
               } catch (emailSendErr) {
-                const errMsg = `[DIAG] Error sending receipt email: ${emailSendErr}`;
+                const errMsg = `[DIAG] Error sending receipt email: ${emailSendErr && emailSendErr.message ? emailSendErr.message : emailSendErr}`;
                 console.error(errMsg);
-                logToFile(errMsg);
+                if (emailSendErr && emailSendErr.stack) console.error(emailSendErr.stack);
+                logToFile(errMsg + (emailSendErr && emailSendErr.stack ? '\n' + emailSendErr.stack : ''));
               }
             }
             const doneMsg = `Donation completed: ${donation ? donation._id : 'unknown'}`;

@@ -922,3 +922,8 @@
 [2025-10-18T05:52:52.408Z] [DIAG] Webhook received: invoice_payment.paid
 [2025-10-18T05:52:52.818Z] [DIAG] Could not create donation: donor email missing in all sources.
 [2025-10-18T05:52:52.819Z] [DIAG] No donation object available for receipt email. Skipping email send.
+[2025-10-31T22:03:47.747Z] [SPONSOR] Created sponsor 690532438f2c7a34e4b6803a by admin-user
+[2025-10-31T22:06:14.504Z] [SPONSOR] Updated sponsor 690532438f2c7a34e4b6803a by admin-user
+[2025-10-31T23:02:23.893Z] [SPONSOR] Created sponsor 69053fff8f2c7a34e4b680ba by admin-user
+[2025-10-31T23:02:41.741Z] [SPONSOR] Created sponsor 690540118f2c7a34e4b680bd by admin-user
+[2025-10-31T23:03:02.535Z] [SPONSOR] Created sponsor 690540268f2c7a34e4b680c0 by admin-user

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
+import { Link } from 'react-router-dom';
 import { HeartIcon, ShieldCheckIcon, CreditCardIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { stripeService } from '../services/stripe';
 import PaymentForm from '../components/Stripe/PaymentForm';
@@ -284,7 +285,7 @@ const Donate = () => {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900">501(c)(3) Nonprofit</h4>
-                    <p className="text-gray-600">Your donation is tax-deductible. EIN: 12-3456789</p>
+                    <p className="text-gray-600">Your donation is tax-deductible. EIN: 41-2531054</p>
                   </div>
                 </div>
                 <div className="flex items-start">
@@ -293,7 +294,7 @@ const Donate = () => {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900">Direct Impact</h4>
-                    <p className="text-gray-600">87% of donations go directly to animal care and rescue operations</p>
+                    <p className="text-gray-600">100% of donations go directly to animal care and rescue operations</p>
                   </div>
                 </div>
                 <div className="flex items-start">
@@ -369,12 +370,12 @@ const Donate = () => {
             <div className="bg-gray-100 rounded-lg p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Other Ways to Help</h3>
               <div className="space-y-2">
-                <a href="/volunteer" className="block text-blue-600 hover:text-blue-800 font-semibold">
+                <Link to="/volunteer" className="block text-blue-600 hover:text-blue-800 font-semibold">
                   → Volunteer your time
-                </a>
-                <a href="/monthly" className="block text-blue-600 hover:text-blue-800 font-semibold">
+                </Link>
+                <Link to="/monthly" className="block text-blue-600 hover:text-blue-800 font-semibold">
                   → Join our monthly giving program
-                </a>
+                </Link>
                 <button className="block text-blue-600 hover:text-blue-800 font-semibold text-left">
                   → Corporate sponsorship opportunities
                 </button>

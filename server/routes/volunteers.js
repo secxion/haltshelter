@@ -5,6 +5,16 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Get count of active volunteers (admin/staff only)
+router.get('/count', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const count = await Volunteer.countDocuments({ applicationStatus: 'approved' });
+    res.json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Submit volunteer application (public endpoint)
 router.post('/apply', [
   body('name').trim().isLength({ min: 1 }).withMessage('Name is required'),

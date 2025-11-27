@@ -9,7 +9,7 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+
 api.interceptors.request.use(
   (config) => {
     // Use adminToken for admin panel
@@ -65,6 +65,12 @@ export const apiService = {
   // Admin Key
   adminKey: {
     get: () => api.get('/admin-key'),
+  },
+
+  // Admin-specific endpoints
+  stats: {
+    get: () => api.get('/admin/stats'),
+    update: (stats) => api.put('/admin/stats', stats),
   },
 
   // Animals
@@ -149,6 +155,14 @@ export const apiService = {
         },
       });
     },
+  },
+  // Sponsors
+  sponsors: {
+    getAll: (params = {}) => api.get('/sponsors', { params }),
+    getById: (id) => api.get(`/sponsors/${id}`),
+    create: (data) => api.post('/sponsors', data),
+    update: (id, data) => api.put(`/sponsors/${id}`, data),
+    delete: (id) => api.delete(`/sponsors/${id}`)
   },
 };
 

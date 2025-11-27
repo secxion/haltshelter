@@ -310,8 +310,9 @@ app.post('/api/admin-auth/admin-login', (req, res) => {
 console.log('📦 Loading other routes...');
 app.use('/api/animals', require('./routes/animals'));
 app.use('/api/stories', require('./routes/stories'));
-app.use('/api/blog', require('./routes/blog')); // Back to full blog routes
+app.use('/api/blog', require('./routes/blog'));
 app.use('/api/donations', require('./routes/donations'));
+app.use('/api/sponsors', require('./routes/sponsors'));
 app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/volunteers', require('./routes/volunteers'));
 app.use('/api/org-settings', require('./routes/org-settings'));
@@ -324,6 +325,7 @@ app.use('/api/stats', require('./routes/stats'));
 // Admin routes
 app.use('/api/admin/animals', require('./routes/admin-animals'));
 app.use('/api/admin/adoption-inquiries', require('./routes/admin-adoption-inquiries'));
+app.use('/api/admin/stats', require('./routes/admin-stats'));
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {

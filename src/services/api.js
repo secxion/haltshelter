@@ -94,6 +94,12 @@ export const apiService = {
     delete: (id) => api.delete(`/stories/${id}`),
   },
 
+  // Sponsors
+  sponsors: {
+    getAll: (params = {}) => api.get('/sponsors', { params }),
+    getById: (id) => api.get(`/sponsors/${id}`),
+  },
+
   // Blogs
   blog: {
     getBySlug: (slug) => api.get(`/blog/${slug}`),

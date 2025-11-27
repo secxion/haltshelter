@@ -8,6 +8,7 @@ import {
   HeartIcon
 } from '@heroicons/react/24/outline';
 import SystemStatus from '../components/SystemStatus';
+import SponsorsManager from '../components/SponsorsManager/SponsorsManager';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -29,35 +30,49 @@ const Dashboard = () => {
       setLoading(true);
       console.log('🔄 Fetching dashboard data...');
       
-      // Fetch dashboard statistics from the stats API
-      const statsResponse = await fetch('http://localhost:5000/api/stats/dashboard');
+      // Fetch all counts in parallel using direct count endpoints
+      const [storiesResponse, animalsResponse, volunteersResponse, donationsResponse] = await Promise.all([
+        fetch('http://localhost:5000/api/stories/count', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch('http://localhost:5000/api/animals/count', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch('http://localhost:5000/api/volunteers/count', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch('http://localhost:5000/api/donations/count', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      ]);
       
-      console.log('📊 Stats response status:', statsResponse.status);
-      const statsData = await statsResponse.json();
-      console.log('📊 Raw stats data received:', statsData);
+      const [storiesData, animalsData, volunteersData, donationsData] = await Promise.all([
+        storiesResponse.json(),
+        animalsResponse.json(),
+        volunteersResponse.json(),
+        donationsResponse.json()
+      ]);
       
-      if (statsData.success) {
-        console.log('✅ Setting stats with:', statsData.stats);
-        setStats({
-          stories: statsData.stats.stories,
-          animals: statsData.stats.animals,
-          volunteers: statsData.stats.volunteers,
-          donations: statsData.stats.donations
-        });
-        console.log('✅ Stats state updated successfully');
-      } else {
-        console.error('❌ Stats API error:', statsData.error);
-        // Fallback to basic data if API fails
-        const storiesResponse = await fetch('http://localhost:5000/api/stories');
-        const storiesData = await storiesResponse.json();
-        
-        setStats({
-          stories: storiesData.data?.length || 0,
-          animals: 0,
-          volunteers: 0,
-          donations: 0
-        });
-      }
+      // Set stats with direct values from each API's count endpoint
+      setStats({
+        stories: storiesData.count || 0,
+        animals: animalsData.count || 0,
+        volunteers: volunteersData.count || 0,
+        donations: donationsData.count || 0
+      });
+      console.log('✅ Stats state updated successfully');
       
       // Fetch animal breakdown stats
       const animalStatsResponse = await fetch('http://localhost:5000/api/admin/animals/stats/breakdown', {
@@ -74,9 +89,9 @@ const Dashboard = () => {
       }
 
       // Get recent stories for the activity section
-      const storiesResponse = await fetch('http://localhost:5000/api/stories');
-      const storiesData = await storiesResponse.json();
-      setRecentStories((storiesData.data || []).slice(0, 3));
+      const recentStoriesResponse = await fetch('http://localhost:5000/api/stories');
+      const recentStoriesData = await recentStoriesResponse.json();
+      setRecentStories((recentStoriesData.data || []).slice(0, 3));
       
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
@@ -307,6 +322,13 @@ const Dashboard = () => {
       </div>
 
       {/* Real-time System Status */}
+      {/* Sponsors management - Admin */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <SponsorsManager />
+        </div>
+      </div>
+
       <SystemStatus />
     </div>
   );

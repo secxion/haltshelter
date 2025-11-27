@@ -112,7 +112,7 @@ const DonateSuccess = () => {
               <ul className="space-y-2 text-gray-600">
                 <li className="flex items-start">
                   <span className="text-green-600 mr-2">✓</span>
-                  You'll receive an email receipt for tax purposes within 24 hours
+                  You'll receive an email receipt for tax purposes within 24 hours (EIN: 41-2531054)
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-600 mr-2">✓</span>

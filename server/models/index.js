@@ -7,6 +7,8 @@ module.exports = {
   User: require('./User'),
   Blog: require('./Blog'),
   AdoptionInquiry: require('./AdoptionInquiry'),
+  Sponsor: require('./Sponsor'),
   OrganizationSettings: require('./OrganizationSettings'),
-  NotificationSettings: require('./NotificationSettings')
+  NotificationSettings: require('./NotificationSettings'),
+  Stats: require('./Stats')
 };

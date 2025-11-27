@@ -10,6 +10,8 @@ import AnimalManager from './components/AnimalManager';
 import AdoptionInquiryManager from './components/AdoptionInquiryManager';
 import Layout from './components/Layout';
 import UserManagement from './pages/UserManagement';
+import Sponsors from './pages/Sponsors';
+import StatsManager from './components/StatsManager/StatsManager';
 
 // Simple auth context
 const AuthContext = React.createContext();
@@ -130,6 +132,20 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <UserManagement />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/sponsors" element={
+            <ProtectedRoute>
+              <Layout>
+                <Sponsors />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/stats" element={
+            <ProtectedRoute>
+              <Layout>
+                <StatsManager />
               </Layout>
             </ProtectedRoute>
           } />

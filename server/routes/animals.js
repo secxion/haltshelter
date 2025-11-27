@@ -4,6 +4,18 @@ const { Animal } = require('../models');
 const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Get count of animals in care (admin/staff only)
+router.get('/count', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const inCareStatuses = ['Available', 'Medical Hold', 'Pending', 'Foster'];
+    const count = await Animal.countDocuments({ status: { $in: inCareStatuses } });
+    res.json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get foster-eligible animals (public endpoint)
 router.get('/foster-eligible', async (req, res) => {
   try {

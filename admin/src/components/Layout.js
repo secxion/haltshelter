@@ -8,7 +8,8 @@ import {
   UsersIcon,
   ArrowRightOnRectangleIcon,
   NewspaperIcon,
-  HeartIcon
+  HeartIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 
 const Layout = ({ children }) => {
@@ -23,6 +24,7 @@ const Layout = ({ children }) => {
     { name: 'Adoption Inquiries', href: '/adoption-inquiries', icon: HeartIcon, current: location.pathname === '/adoption-inquiries' },
     { name: 'Volunteers', href: '/volunteers', icon: UsersIcon, current: location.pathname === '/volunteers' },
     { name: 'User Management', href: '/users', icon: UsersIcon, current: location.pathname === '/users' },
+    { name: 'Stats', href: '/stats', icon: ChartBarIcon, current: location.pathname === '/stats' },
   ];
 
   return (

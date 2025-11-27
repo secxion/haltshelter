@@ -5,6 +5,16 @@ const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Get count of published stories (admin/staff only)
+router.get('/count', authenticate, authorize('admin', 'staff'), async (req, res) => {
+  try {
+    const count = await Story.countDocuments({ isPublished: true });
+    res.json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get all stories (public endpoint)
 router.get('/', optionalAuth, async (req, res) => {
   try {

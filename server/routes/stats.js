@@ -1,101 +1,70 @@
 const express = require('express');
 const router = express.Router();
-const { Story, Blog, Volunteer, Donation, Animal } = require('../models');
-const OrganizationSettings = require('../models/OrganizationSettings');
+const { Story, Blog, Volunteer, Donation, Animal, Stats } = require('../models');
 
 router.get('/dashboard', async (req, res) => {
   try {
     console.log('📊 Fetching dashboard statistics...');
 
-    let stats = {
-      stories: 0,
-      blogs: 0,
-      volunteers: 0,
-      donations: 0,
-      animals: 0,
-      revenue: 0
-    };
-
+    // Load any admin-overridden stats (optional)
+    let adminStats = null;
     try {
-      const storyCount = await Story.countDocuments({ isPublished: true });
-      stats.stories = storyCount;
-      console.log(`📖 Stories: ${storyCount}`);
-    } catch (error) {
-      console.log('⚠️ Stories count error:', error.message);
+      adminStats = await Stats.getCurrentStats();
+      console.log('📊 Admin stats loaded:', JSON.stringify(adminStats, null, 2));
+    } catch (err) {
+      console.log('⚠️ Could not read Stats (continuing with calculated values):', err.message);
     }
 
-    try {
-      const blogCount = await Blog.countDocuments({ status: 'published' });
-      stats.blogs = blogCount;
-      console.log(`📝 Blogs: ${blogCount}`);
-    } catch (error) {
-      console.log('⚠️ Blogs count error:', error.message);
-    }
+    // Calculate counts with sensible filters so the dashboard reflects real values.
+    const storiesCount = await Story.countDocuments({ isPublished: true }).catch(() => 0);
 
-    try {
-      const volunteerCount = await Volunteer.countDocuments();
-      stats.volunteers = volunteerCount;
-      console.log(`👥 Volunteers: ${volunteerCount}`);
-    } catch (error) {
-      console.log('⚠️ Volunteers count error:', error.message);
-    }
+    // Animals in care: include animals that are currently not adopted (Available, Medical Hold, Pending, Foster)
+    const inCareStatuses = ['Available', 'Medical Hold', 'Pending', 'Foster'];
+    const animalsCount = await Animal.countDocuments({ status: { $in: inCareStatuses } }).catch(() => 0);
 
-    try {
-      const donations = await Donation.find({ paymentStatus: 'completed' });
-      stats.donations = donations.length;
-      stats.revenue = donations.reduce((total, donation) => total + (donation.amount || 0), 0);
-      console.log(`💰 Donations: ${stats.donations}, Revenue: $${stats.revenue}`);
-    } catch (error) {
-      console.log('⚠️ Donations count error:', error.message);
-    }
+    // Donations: count only completed payments (use paymentStatus field)
+    const donationsCount = await Donation.countDocuments({ paymentStatus: 'completed' }).catch(() => 0);
 
-    try {
-      const animalCount = await Animal.countDocuments({ 
-        status: { $ne: 'Adopted' } 
-      });
-      stats.animals = animalCount;    
-      console.log(`🐾 Animals in Care: ${animalCount}`);
-    } catch (error) {
-      console.log('⚠️ Animals count error:', error.message);
-    }
+    // Adoptions this month (based on adoptionDate)
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const adoptionsThisMonth = await Animal.countDocuments({
+      status: 'Adopted',
+      adoptionDate: { $gte: monthStart }
+    }).catch(() => 0);
 
-      try {
-        const now = new Date();
-        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        const adoptionsThisMonth = await Animal.countDocuments({
-          status: 'Adopted',
-          adoptionDate: { $gte: firstDayOfMonth, $lte: lastDayOfMonth }
-        });
-        stats.adoptionsThisMonth = adoptionsThisMonth;
-        console.log(`📅 Adoptions This Month: ${adoptionsThisMonth}`);
-      } catch (error) {
-        console.log('⚠️ Adoptions this month count error:', error.message);
-      }
+    // Volunteers: prefer admin-managed value if provided, otherwise count approved volunteers
+    let volunteersCount = adminStats?.activeVolunteers;
+    if (typeof volunteersCount !== 'number') {
+      volunteersCount = await Volunteer.countDocuments({ applicationStatus: 'approved' }).catch(() => 0);
+    }
 
     const response = {
       success: true,
-      stats,
-      lastUpdated: new Date().toISOString()
+      // Provide both the new/UI-friendly keys and legacy/admin-managed keys for backward compatibility
+      stats: {
+        // UI-friendly
+        stories: storiesCount,
+        animals: animalsCount,
+        volunteers: volunteersCount,
+        donations: donationsCount,
+        adoptionsThisMonth,
+
+        // Legacy/admin-managed fields (if present)
+        animalsRescued: adminStats?.animalsRescued ?? undefined,
+        adoptionsThisMonth: adminStats?.adoptionsThisMonth ?? adoptionsThisMonth,
+        activeVolunteers: adminStats?.activeVolunteers ?? undefined,
+        livesTransformed: adminStats?.livesTransformed ?? undefined,
+
+        lastUpdated: adminStats?.lastUpdated ?? new Date().toISOString()
+      }
     };
 
-    try {
-      const org = await OrganizationSettings.findOne();
-      if (org && typeof org.animalsRescued === 'number') {
-        response.stats.animalsRescued = org.animalsRescued;
-        console.log(`🐾 Global animalsRescued: ${org.animalsRescued}`);
-      }
-    } catch (err) {
-      console.log('⚠️ Could not read OrganizationSettings.animalsRescued:', err.message);
-    }
-
     console.log('📤 Sending response:', JSON.stringify(response, null, 2));
-    console.log('✅ Dashboard stats calculated successfully');
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     console.error('❌ Error fetching dashboard stats:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch dashboard statistics',
       details: error.message
@@ -115,12 +84,12 @@ router.get('/recent-activity', async (req, res) => {
       recentDonations: []
     };
 
-    // Recent stories
+    // Recent stories (published)
     try {
-      const recentStories = await Story.find({ status: 'published' })
+      const recentStories = await Story.find({ isPublished: true })
         .sort({ createdAt: -1 })
         .limit(5)
-        .select('title slug category image createdAt');
+        .select('title slug category featuredImage createdAt');
       activity.recentStories = recentStories;
     } catch (error) {
       console.log('⚠️ Recent stories error:', error.message);
@@ -148,12 +117,12 @@ router.get('/recent-activity', async (req, res) => {
       console.log('⚠️ Recent volunteers error:', error.message);
     }
 
-    // Recent donations
+    // Recent donations (completed payments)
     try {
-      const recentDonations = await Donation.find({ status: 'succeeded' })
+      const recentDonations = await Donation.find({ paymentStatus: 'completed' })
         .sort({ createdAt: -1 })
         .limit(5)
-        .select('amount donorEmail donationType createdAt');
+        .select('amount donorInfo donationType createdAt');
       activity.recentDonations = recentDonations;
     } catch (error) {
       console.log('⚠️ Recent donations error:', error.message);

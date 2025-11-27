@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { HeartIcon, UsersIcon, HomeIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { FaEnvelope } from 'react-icons/fa';
-import { FaFacebook, FaInstagram, FaTwitter, FaTiktok, FaYoutube } from 'react-icons/fa';
 import { apiService, handleApiError } from '../services/api';
 
       <div className="fixed bottom-6 right-6 z-50">
@@ -24,31 +23,36 @@ const Home = () => {
   const [newsletterStatus, setNewsletterStatus] = useState('');
 
   const [stats, setStats] = useState([
-    { label: 'Animals Rescued', value: 107, icon: HeartIcon },
-    { label: 'Adoptions This Month', value: '—', icon: HomeIcon },
-    { label: 'Active Volunteers', value: '—', icon: UsersIcon },
-    { label: 'Lives Transformed', value: '—', icon: SparklesIcon },
+    { label: 'Animals Rescued', value: 0, icon: HeartIcon },
+    { label: 'Adoptions This Month', value: 0, icon: HomeIcon },
+    { label: 'Active Volunteers', value: 0, icon: UsersIcon },
+    { label: 'Lives Transformed', value: 0, icon: SparklesIcon },
   ]);
 
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        console.log('📊 Fetching stats for homepage...');
         const response = await apiService.stats.getDashboard();
+        console.log('📊 Raw stats response:', JSON.stringify(response.data, null, 2));
         const payload = response.data || {};
         const s = payload.stats || payload;
+        console.log('📊 Processed stats data:', JSON.stringify(s, null, 2));
+        
+        // Log individual values for debugging
+        console.log('🔍 Stats values check:');
+        console.log('- Animals Rescued:', s.animalsRescued);
+        console.log('- Adoptions This Month:', s.adoptionsThisMonth);
+        console.log('- Active Volunteers:', s.activeVolunteers);
+        console.log('- Lives Transformed:', s.livesTransformed);
 
-        // Prefer the server-provided animalsRescued. Use MIN_DISPLAY as a safe floor.
-        const MIN_DISPLAY = 107;
-        let backendAnimals = Number(s.animalsRescued ?? s.animals);
-        if (!Number.isFinite(backendAnimals)) backendAnimals = NaN;
-        const chosenAnimals = Number.isFinite(backendAnimals) ? backendAnimals : MIN_DISPLAY;
-
+        // Use server-provided values or fallback to initial values
         setStats([
-          { label: 'Animals Rescued', value: chosenAnimals, icon: HeartIcon },
-          { label: 'Adoptions This Month', value: s.adoptionsThisMonth ?? s.adoptionsThisYear ?? '—', icon: HomeIcon },
-          { label: 'Active Volunteers', value: s.volunteers ?? s.activeVolunteers ?? '—', icon: UsersIcon },
-          { label: 'Lives Transformed', value: s.livesTransformed ?? (s.adoptionsTotal ?? s.revenue ?? '—'), icon: SparklesIcon },
+          { label: 'Animals Rescued', value: s.animalsRescued ?? 0, icon: HeartIcon },
+          { label: 'Adoptions This Month', value: s.adoptionsThisMonth ?? 0, icon: HomeIcon },
+          { label: 'Active Volunteers', value: s.activeVolunteers ?? 0, icon: UsersIcon },
+          { label: 'Lives Transformed', value: s.livesTransformed ?? 0, icon: SparklesIcon },
         ]);
       } catch (err) {
         // fallback: keep default stats
@@ -417,30 +421,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Social Proof & Community */}
-      <section className="bg-white py-12 border-t border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Trusted & Celebrated</h2>
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Join Our Community</h3>
-          <div className="flex flex-wrap justify-center gap-6 text-2xl">
-            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 flex items-center gap-2" aria-label="Facebook">
-              <FaFacebook /> Facebook
-            </a>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-pink-500 flex items-center gap-2" aria-label="Instagram">
-              <FaInstagram /> Instagram
-            </a>
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 flex items-center gap-2" aria-label="Twitter">
-              <FaTwitter /> Twitter
-            </a>
-            <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="hover:text-black flex items-center gap-2" aria-label="TikTok">
-              <FaTiktok /> TikTok
-            </a>
-            <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 flex items-center gap-2" aria-label="YouTube">
-              <FaYoutube /> YouTube
-            </a>
-          </div>
-        </div>
-      </section>
+      {/* Social Proof removed per request */}
     </div>
   );
 }

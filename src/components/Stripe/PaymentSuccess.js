@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircleIcon, HeartIcon, ShareIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom';
 import { stripeService } from '../../services/stripe';
 
 const PaymentSuccess = ({ 
@@ -161,12 +162,12 @@ const PaymentSuccess = ({
         )}
         
         {/* View Stories */}
-        <a
-          href="/stories"
+        <Link
+          to="/stories"
           className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors text-center block"
         >
           See How Donations Help Animals
-        </a>
+        </Link>
       </div>
 
       {/* Contact Info */}

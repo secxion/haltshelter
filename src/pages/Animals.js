@@ -711,34 +711,34 @@ const Animals = () => {
                 >
                   Browse Available Animals
                 </button>
-                <a
-                  href="/donate"
+                <Link
+                  to="/donate"
                   className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-4 px-8 rounded-lg text-lg transition-colors shadow-lg border-2 border-yellow-300"
                   style={{ minWidth: '200px' }}
                 >
                   💝 Donate Now
-                </a>
-                <a
-                  href="/foster"
+                </Link>
+                <Link
+                  to="/foster"
                   className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-colors shadow-lg border-2 border-green-400"
                   style={{ minWidth: '200px' }}
                 >
                   🏡 Become a Foster
-                </a>
-                <a
-                  href="/volunteer"
+                </Link>
+                <Link
+                  to="/volunteer"
                   className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-lg text-lg transition-colors shadow-lg border-2 border-purple-400"
                   style={{ minWidth: '200px' }}
                 >
                   🤝 Volunteer With Us
-                </a>
-                <a
-                  href="#newsletter-signup"
+                </Link>
+                <button
+                  onClick={() => document.getElementById('newsletter-signup')?.scrollIntoView({ behavior: 'smooth' })}
                   className="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-colors shadow-lg border-2 border-red-400"
                   style={{ minWidth: '200px' }}
                 >
                   📧 Sign Up for Updates
-                </a>
+                </button>
               </div>
 
               {/* Success Stories Link */}
@@ -761,12 +761,12 @@ const Animals = () => {
                 <p className="text-red-700 text-sm md:text-base">Some of our animals need extra help finding a home due to medical needs, age, or long shelter stays. Adopting or fostering one of these pets saves lives!</p>
               </div>
             </div>
-            <a
-              href="#animals-section"
-              className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg border-2 border-red-400 text-lg"
-            >
-              View Urgent Animals
-            </a>
+              <button
+                onClick={() => document.getElementById('animals-section')?.scrollIntoView({ behavior: 'smooth' })}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg border-2 border-red-400 text-lg"
+              >
+                View Urgent Animals
+              </button>
           </div>
         </div>
 
@@ -1063,21 +1063,21 @@ const Animals = () => {
                       >
                         I'm Interested in {animal.name}
                       </button>
-                      <a
-                        href={`/donate?animal=${encodeURIComponent(animal.name)}`}
+                      <Link
+                        to={`/donate?animal=${encodeURIComponent(animal.name)}`}
                         className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-2 px-4 rounded transition-colors block text-center border-2 border-yellow-300"
                         aria-label={`Sponsor ${animal.name}`}
                       >
                         💝 Sponsor Me
-                      </a>
+                      </Link>
                       {animal.isFosterEligible && (
-                        <a
-                          href={`/foster?animal=${encodeURIComponent(animal.name)}`}
+                        <Link
+                          to={`/foster?animal=${encodeURIComponent(animal.name)}`}
                           className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors block text-center border-2 border-green-400"
                           aria-label={`Foster ${animal.name}`}
                         >
                           🏡 Foster Me
-                        </a>
+                        </Link>
                       )}
                     </div>
                   </div>

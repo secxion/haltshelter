@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { HeartIcon, EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
-import { FaFacebook, FaInstagram, FaTwitter, FaYoutube, FaTiktok } from 'react-icons/fa';
+import { FaFacebook } from 'react-icons/fa';
+import FooterSponsors from './FooterSponsors';
 
 const Footer = () => {
+  // Allow overriding the Facebook URL via environment variable for easy updates without code changes
+  const fbUrl = process.env.REACT_APP_FACEBOOK_URL || 'https://www.facebook.com/HelpingAnimalsLiveAndThrive';
   return (
     <footer className="bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -19,20 +22,9 @@ const Footer = () => {
               Every donation saves a life.
             </p>
             <div className="flex space-x-4">
-              <a href="https://facebook.com/haltshelter" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors" aria-label="Facebook">
+              {/* Facebook only - update the href to your page's actual slug if different */}
+              <a href={fbUrl} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors" aria-label="Helping Animals Live & Thrive - Facebook">
                 <FaFacebook className="h-6 w-6" />
-              </a>
-              <a href="https://instagram.com/haltshelter" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors" aria-label="Instagram">
-                <FaInstagram className="h-6 w-6" />
-              </a>
-              <a href="https://twitter.com/haltshelter" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors" aria-label="Twitter">
-                <FaTwitter className="h-6 w-6" />
-              </a>
-              <a href="https://tiktok.com/@haltshelter" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors" aria-label="TikTok">
-                <FaTiktok className="h-6 w-6" />
-              </a>
-              <a href="https://youtube.com/haltshelter" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors" aria-label="YouTube">
-                <FaYoutube className="h-6 w-6" />
               </a>
             </div>
           </div>
@@ -44,7 +36,7 @@ const Footer = () => {
               <li><Link to="/about" className="text-gray-300 hover:text-white transition-colors">About Us</Link></li>
               <li><Link to="/stories" className="text-gray-300 hover:text-white transition-colors">Success Stories</Link></li>
               <li><Link to="/volunteer" className="text-gray-300 hover:text-white transition-colors">Volunteer</Link></li>
-              <li><Link to="/blog" className="text-gray-300 hover:text-white transition-colors">Pet Care Guides</Link></li>
+              <li><Link to="/blog?category=pet-care" className="text-gray-300 hover:text-white transition-colors">Pet Care Guides</Link></li>
             </ul>
           </div>
 
@@ -53,9 +45,10 @@ const Footer = () => {
             <h3 className="text-lg font-semibold">Support</h3>
             <ul className="space-y-2">
               <li><Link to="/donate" className="text-gray-300 hover:text-white transition-colors">One-Time Donation</Link></li>
-              <li><Link to="/monthly" className="text-gray-300 hover:text-white transition-colors">Monthly Giving</Link></li>
-              <li><button type="button" className="text-gray-300 hover:text-white transition-colors text-left">Corporate Sponsors</button></li>
+              <li><Link to="/donate?recurrence=monthly" className="text-gray-300 hover:text-white transition-colors">Monthly Giving</Link></li>
             </ul>
+            {/* Sponsors preview (featured) */}
+            <FooterSponsors />
           </div>
 
           {/* Contact */}
@@ -71,19 +64,14 @@ const Footer = () => {
                 <span className="text-gray-300">+1 (555) 123-4567</span>
               </div>
             </div>
-            <div className="pt-4">
-              <p className="text-sm text-gray-300">
-                Emergency Animal Rescue:<br />
-                <span className="text-white font-semibold">+1 (555) 911-PETS</span>
-              </p>
-            </div>
+            {/* Emergency contact removed per request */}
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-700">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-300 text-sm">
-              © 2025 HALTSHELTER. All rights reserved. | 501(c)(3) Nonprofit
+              © 2025 HALTSHELTER. All rights reserved. | 501(c)(3) Nonprofit | EIN: 41-2531054
             </p>
             <div className="mt-4 md:mt-0 flex space-x-6">
               <button type="button" className="text-gray-300 hover:text-white text-sm transition-colors">Privacy Policy</button>
