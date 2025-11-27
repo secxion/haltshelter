@@ -19,25 +19,23 @@ const {
 
 // Initialize Express app
 const app = express();
+// Hide Express signature
+app.disable('x-powered-by');
 
-// Configure trust proxy from environment. In production, set TRUST_PROXY to the
-// proxy IPs or a boolean. Defaults: development -> true (tests often set X-Forwarded-For),
-// production -> false (safer). Example values:
-// TRUST_PROXY=true
-// TRUST_PROXY=127.0.0.1
-const rawTrust = process.env.TRUST_PROXY;
-if (rawTrust !== undefined) {
-  // allow boolean-like strings
-  if (rawTrust.toLowerCase && (rawTrust.toLowerCase() === 'true' || rawTrust.toLowerCase() === 'false')) {
-    app.set('trust proxy', rawTrust.toLowerCase() === 'true');
-  } else {
-    app.set('trust proxy', rawTrust);
-  }
+// Configure trust proxy (Render sets RENDER env variable)
+if (process.env.RENDER) {
+  app.set('trust proxy', 1);
 } else {
-  // Safer default: do not enable trust proxy by default. Tests that need X-Forwarded-For
-  // can set TRUST_PROXY=true in their environment. This prevents express-rate-limit
-  // from rejecting startup when trust proxy is permissive.
-  app.set('trust proxy', false);
+  const rawTrust = process.env.TRUST_PROXY;
+  if (rawTrust !== undefined) {
+    if (rawTrust.toLowerCase && (rawTrust.toLowerCase() === 'true' || rawTrust.toLowerCase() === 'false')) {
+      app.set('trust proxy', rawTrust.toLowerCase() === 'true');
+    } else {
+      app.set('trust proxy', rawTrust);
+    }
+  } else {
+    app.set('trust proxy', false);
+  }
 }
 
 // Connect to MongoDB (non-blocking)
@@ -57,36 +55,34 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com", "https://m.stripe.network"],
-      connectSrc: ["'self'", "https://api.stripe.com", "https://m.stripe.network"],
-      frameSrc: ["'self'", "https://js.stripe.com", "https://m.stripe.network"]
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com", "https://checkout.stripe.com", "https://m.stripe.network"],
+      connectSrc: ["'self'", "https://api.stripe.com", "https://checkout.stripe.com", "https://m.stripe.network"],
+      frameSrc: ["'self'", "https://js.stripe.com", "https://checkout.stripe.com", "https://m.stripe.network"]
     }
   }
 }));
 
-// CORS configuration
+// CORS configuration (support monorepo multi-origins via env vars)
 const whitelist = [
-  'http://localhost:3000', 
-  'http://127.0.0.1:3000', 
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'http://localhost:3001',
   'http://localhost:3002',
   'http://192.168.56.1:3001'
 ];
-
-if (process.env.NODE_ENV === 'production' && process.env.FRONTEND_URL) {
-  whitelist.push(process.env.FRONTEND_URL);
+if (process.env.ALLOWED_ORIGINS) {
+  process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean).forEach(o => whitelist.push(o));
 }
-
+if (process.env.NODE_ENV === 'production') {
+  if (process.env.FRONTEND_URL) whitelist.push(process.env.FRONTEND_URL);
+  if (process.env.ADMIN_URL) whitelist.push(process.env.ADMIN_URL);
+}
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    if (whitelist.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
+    if (whitelist.includes(origin)) return callback(null, true);
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(null, false);
   },
   credentials: true
 }));
@@ -94,9 +90,9 @@ app.use(cors({
 // Logging middleware
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// Stripe webhook endpoint - must be before express.json() to preserve the raw body
-// Use robust handler from donations.js
-app.use('/api/webhooks', require('./routes/donations'));
+// Stripe webhook endpoint: raw body required for signature verification
+const donationsWebhookHandler = require('./routes/donations-webhook');
+app.post('/api/donations/webhook', express.raw({ type: 'application/json' }), donationsWebhookHandler);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -261,7 +257,9 @@ app.get('/api/admin-auth/test', (req, res) => {
 });
 
 app.post('/api/admin-auth/admin-login', (req, res) => {
-  console.log('🔑 DIRECT Admin login hit!', req.body);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🔑 DIRECT Admin login attempt');
+  }
   const { adminKey } = req.body;
   
   try {
@@ -279,6 +277,9 @@ app.post('/api/admin-auth/admin-login', (req, res) => {
   // legacy test key 'test123' to avoid having to modify tests or CI envs.
   const isTestLegacyKey = (process.env.NODE_ENV !== 'production' && adminKey === 'test123');
   if (adminKey === storedAdminKey || isTestLegacyKey) {
+      if (!process.env.JWT_SECRET) {
+        return res.status(500).json({ error: 'JWT secret not configured' });
+      }
       // Generate real JWT token
       const token = jwt.sign(
         { 
@@ -327,13 +328,24 @@ app.use('/api/admin/animals', require('./routes/admin-animals'));
 app.use('/api/admin/adoption-inquiries', require('./routes/admin-adoption-inquiries'));
 app.use('/api/admin/stats', require('./routes/admin-stats'));
 
-// Serve static files in production
+// Serve static files in production with existence guard to avoid "Cannot GET /"
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../build')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build', 'index.html'));
-  });
+  const fs = require('fs');
+  const buildPath = path.join(__dirname, '../build');
+  if (fs.existsSync(buildPath)) {
+    app.use(express.static(buildPath, { maxAge: '1y', immutable: true }));
+    // SPA fallback (do not cache index.html)
+    app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.join(buildPath, 'index.html'));
+    });
+  } else {
+    console.warn('⚠️  Frontend build folder not found at ../build. Running API-only.');
+    // Optional friendly root response
+    app.get('/', (req, res) => {
+      res.status(200).send('HALT Shelter API running. Frontend build not found.');
+    });
+  }
 }
 
 // Global error handler
