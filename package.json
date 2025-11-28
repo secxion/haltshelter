@@ -45,7 +45,7 @@
     "test:server": "mocha server/tests --recursive --timeout 10000",
     "backfill:dry": "node server/scripts/backfillAdoptionDates.js --dry-run",
     "backfill": "node server/scripts/backfillAdoptionDates.js",
-    "build": "cd client && npm install && npm run build && cd .. && rm -rf build || true && mv client/build .",
+    "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

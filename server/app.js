@@ -4,7 +4,7 @@
  * Production-Ready Settings Included
  */
 
-require('dotenv').config(); // Automatically loads .env from the same directory
+require('dotenv').config(); 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -12,26 +12,17 @@ const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const http = require('http');
 const mongoose = require('mongoose');
 
 // --- Configuration Constants ---
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const FRONTEND_BUILD_PATH = path.join(__dirname, 'build'); // Assumes frontend build is in ./build
+const FRONTEND_BUILD_PATH = path.join(__dirname, '../build'); // Frontend build at repo root
 
 // Import database connection and models
 const connectDB = require('./db');
-// Destructure models (assuming they are correctly exported from './models')
-const { 
-  Animal, 
-  Story, 
-  Blog,
-  Donation, 
-  NewsletterSubscriber, 
-  Volunteer, 
-  User 
-} = require('./models');
+// Import models to register them with Mongoose (used by route handlers)
+require('./models');
 
 // Initialize Express app
 const app = express();
@@ -69,10 +60,9 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
-      // Adjust scriptSrc for Stripe if needed
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com", "https://m.stripe.network"], 
-      connectSrc: ["'self'", "https://api.stripe.com", "https://m.stripe.network"],
-      frameSrc: ["'self'", "https://js.stripe.com", "https://m.stripe.network"]
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com", "https://checkout.stripe.com", "https://m.stripe.network"], 
+      connectSrc: ["'self'", "https://api.stripe.com", "https://checkout.stripe.com", "https://m.stripe.network"],
+      frameSrc: ["'self'", "https://js.stripe.com", "https://checkout.stripe.com", "https://m.stripe.network"]
     }
   },
   // HSTS recommended for production
@@ -129,9 +119,9 @@ if (NODE_ENV === 'production' && fs.existsSync(FRONTEND_BUILD_PATH)) {
 // Logging middleware
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// Stripe webhook endpoint - must be before express.json()
-// Note: Ensure './routes/donations' handles the raw body check correctly
-app.use('/api/webhooks', require('./routes/donations'));
+// Stripe webhook endpoint - MUST be before express.json() to preserve raw body
+const donationsWebhookHandler = require('./routes/donations-webhook');
+app.post('/api/donations/webhook', express.raw({ type: 'application/json' }), donationsWebhookHandler);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
