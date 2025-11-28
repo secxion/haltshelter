@@ -69,8 +69,14 @@ module.exports = async function donationsWebhookHandler(req, res) {
           }
         }
         if (donation) {
-          logToFile('[DIAG] Duplicate payment event received, donation already exists. Skipping creation.');
-          break;
+          logToFile('[DIAG] Duplicate payment event received, donation already exists.');
+          // If receipt already sent, skip email sending to ensure idempotency
+          if (donation.receiptSent) {
+            logToFile('[DIAG] Receipt already sent for this donation. Skipping email.');
+            break;
+          } else {
+            logToFile('[DIAG] Donation exists without receipt; will proceed to send receipt.');
+          }
         }
 
         let donorName = 'Supporter';
@@ -166,7 +172,7 @@ module.exports = async function donationsWebhookHandler(req, res) {
           const noDonationMsg = '[DIAG] No donation object available for receipt email. Skipping email send.';
           console.log(noDonationMsg);
           logToFile(noDonationMsg);
-        } else if (donationJustCreated) {
+        } else if (donationJustCreated || !donation.receiptSent) {
           try {
             const { sendReceiptEmail } = require('../utils/email');
             const donorEmailFinal = (donation.donorInfo && donation.donorInfo.email) || donation.email || (paymentIntent && paymentIntent.receipt_email);
