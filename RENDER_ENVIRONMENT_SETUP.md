@@ -7,7 +7,7 @@ These must be set in Render's **Environment** section and will be baked into the
 
 ```
 REACT_APP_API_URL=/api
-REACT_APP_STRIPE_PUBLISHABLE_KEY=pk_live_YOUR_PUBLISHABLE_KEY_HERE
+REACT_APP_STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
 ```
 
 **Important:** After adding these variables, you MUST trigger a **Manual Deploy** or push a new commit to rebuild the frontend with the new environment variables.
@@ -17,12 +17,20 @@ These are used by the server at runtime:
 
 ```
 NODE_ENV=production
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
-JWT_SECRET=your-super-secret-jwt-key-here
-STRIPE_SECRET_KEY=sk_live_YOUR_SECRET_KEY_HERE
-STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET_HERE
+MONGODB_URI=your_mongodb_connection_string_here
+JWT_SECRET=halt-shelter-super-secret-jwt-key-2025-change-in-production
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret_here
 FRONTEND_URL=https://haltshelter.onrender.com
 ALLOWED_ORIGINS=https://haltshelter.onrender.com
+
+# SMTP Email Configuration (CRITICAL for donation receipts)
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=contact@haltshelter.org
+SMTP_PASS=your_email_password_here
+SMTP_FROM=contact@haltshelter.org
 ```
 
 ## Step-by-Step Setup on Render
@@ -69,3 +77,15 @@ After deployment completes:
 ### Issue: Stripe payments failing
 **Cause:** Missing Stripe keys
 **Solution:** Set `REACT_APP_STRIPE_PUBLISHABLE_KEY` and `STRIPE_SECRET_KEY`
+
+### Issue: Email receipts not being sent
+**Cause:** Missing SMTP environment variables on Render
+**Solution:** Add all SMTP variables to Render environment:
+- `SMTP_HOST=smtp.hostinger.com`
+- `SMTP_PORT=587`
+- `SMTP_SECURE=false`
+- `SMTP_USER=contact@haltshelter.org`
+- `SMTP_PASS=your_email_password_here`
+- `SMTP_FROM=contact@haltshelter.org`
+
+**Verification:** Check server logs on Render for `[EMAIL] SMTP transporter verified` message. Test by making a donation and checking the donor's email inbox.
