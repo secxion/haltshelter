@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const fs = require('fs');
 const path = require('path');
 
 // Import database connection and models
@@ -248,7 +249,6 @@ app.use('/api/adoption-inquiries', require('./routes/adoption-inquiries'));
 
 // DIRECT admin auth routes with real JWT
 const jwt = require('jsonwebtoken');
-const fs = require('fs');
 
 console.log('📦 Adding direct admin auth routes...');
 app.get('/api/admin-auth/test', (req, res) => {
@@ -328,37 +328,41 @@ app.use('/api/admin/animals', require('./routes/admin-animals'));
 app.use('/api/admin/adoption-inquiries', require('./routes/admin-adoption-inquiries'));
 app.use('/api/admin/stats', require('./routes/admin-stats'));
 
-// 2️⃣ Serve the public folder for frontend files (dev-friendly)
-const publicPath = path.join(__dirname, 'public');
-if (fs.existsSync(publicPath)) {
-  app.use(express.static(publicPath));
+const publicPath = path.join(__dirname, '..'); // your project root
+// Or explicitly: path.join(__dirname, '../public') if you want to serve public assets
 
-  // SPA fallback: serve index.html for unknown non-API routes
-  app.get(/^\/(?!api).*/, (req, res) => {
-    const indexFile = path.join(publicPath, 'index.html');
+// Serve static assets (CSS, JS, images)
+app.use(express.static(publicPath));
+
+// SPA fallback for any non-API route
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next(); // skip API
+  const indexFile = path.join(publicPath, 'index.html');
+  if (fs.existsSync(indexFile)) {
     res.sendFile(indexFile);
-  });
-} else {
-  console.warn('⚠️  Public folder not found. No frontend will be served.');
-}
+  } else {
+    res.status(404).send('index.html not found');
+  }
+});
+
 
 // 3️⃣ Production build serving (if you create a build later)
-if (process.env.NODE_ENV === 'production') {
-  const buildPath = path.join(__dirname, '../build');
-  if (fs.existsSync(buildPath)) {
-    app.use(express.static(buildPath, { maxAge: '1y', immutable: true }));
+// if (process.env.NODE_ENV === 'production') {
+//   const buildPath = path.join(__dirname, '../build');
+//   if (fs.existsSync(buildPath)) {
+//     app.use(express.static(buildPath, { maxAge: '1y', immutable: true }));
 
-    app.get('*', (req, res) => {
-      res.setHeader('Cache-Control', 'no-cache');
-      res.sendFile(path.join(buildPath, 'index.html'));
-    });
-  } else {
-    console.warn('⚠️  Frontend build folder not found at ../build. Running API-only.');
-    app.get('/', (req, res) => {
-      res.status(200).send('HALT Shelter API running. Frontend build not found.');
-    });
-  }
-}
+//     app.get('*', (req, res) => {
+//       res.setHeader('Cache-Control', 'no-cache');
+//       res.sendFile(path.join(buildPath, 'index.html'));
+//     });
+//   } else {
+//     console.warn('⚠️  Frontend build folder not found at ../build. Running API-only.');
+//     app.get('/', (req, res) => {
+//       res.status(200).send('HALT Shelter API running. Frontend build not found.');
+//     });
+//   }
+// }
 
 // Global error handler
 app.use((err, req, res, next) => {
