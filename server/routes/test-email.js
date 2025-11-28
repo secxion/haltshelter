@@ -12,23 +12,37 @@ router.get('/send-test-email', async (req, res) => {
     
     console.log('[TEST-EMAIL] Attempting to send test email to:', testEmail);
     
-    const subject = 'HALT Test Email - SMTP Configuration Test';
+    const subject = 'HALT Test Email - Delivery Check';
     const html = `
-      <h2>✅ Email System Working!</h2>
+      <h2>✅ Email System Operational</h2>
       <p>This is a test email from your HALT Shelter server on Render.</p>
-      <p>If you're reading this, your SMTP configuration is working correctly!</p>
+      <p>Email delivery is working via ${process.env.USE_SENDGRID_FIRST === 'true' ? 'SendGrid' : 'SMTP (with SendGrid fallback)'}.</p>
       <p><strong>Server Environment:</strong> ${process.env.NODE_ENV || 'development'}</p>
       <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
       <hr>
-      <p>SMTP Configuration Status:</p>
+      <p>Current Configuration:</p>
       <ul>
-        <li>Host: ${process.env.SMTP_HOST || 'NOT SET'}</li>
-        <li>Port: ${process.env.SMTP_PORT || 'NOT SET'}</li>
-        <li>User: ${process.env.SMTP_USER || 'NOT SET'}</li>
-        <li>From: ${process.env.SMTP_FROM || 'NOT SET'}</li>
+        <li><strong>Preferred Sender:</strong> ${process.env.USE_SENDGRID_FIRST === 'true' ? 'SendGrid' : 'SMTP'}</li>
+        <li><strong>SendGrid From:</strong> ${process.env.SENDGRID_FROM_EMAIL || 'NOT SET'}</li>
+        <li><strong>SMTP Host:</strong> ${process.env.SMTP_HOST || 'NOT SET'}</li>
+        <li><strong>SMTP Port:</strong> ${process.env.SMTP_PORT || 'NOT SET'}</li>
+        <li><strong>SMTP User:</strong> ${process.env.SMTP_USER || 'NOT SET'}</li>
+        <li><strong>SMTP From:</strong> ${process.env.SMTP_FROM || 'NOT SET'}</li>
       </ul>
+      <p style="font-size:12px;color:#666">Tip: For best deliverability, authenticate your domain (SPF, DKIM, DMARC).</p>
     `;
-    const text = `HALT Test Email\n\nIf you're reading this, your SMTP configuration is working!\nServer: ${process.env.NODE_ENV}\nTimestamp: ${new Date().toISOString()}`;
+    const text = [
+      'HALT Test Email - Delivery Check',
+      `Email delivery is working via ${process.env.USE_SENDGRID_FIRST === 'true' ? 'SendGrid' : 'SMTP (with SendGrid fallback)'}.
+Server: ${process.env.NODE_ENV || 'development'}
+Timestamp: ${new Date().toISOString()}`,
+      'Preferred:',
+      `SendGrid From: ${process.env.SENDGRID_FROM_EMAIL || 'NOT SET'}`,
+      `SMTP Host: ${process.env.SMTP_HOST || 'NOT SET'}`,
+      `SMTP Port: ${process.env.SMTP_PORT || 'NOT SET'}`,
+      `SMTP User: ${process.env.SMTP_USER || 'NOT SET'}`,
+      `SMTP From: ${process.env.SMTP_FROM || 'NOT SET'}`
+    ].join('\n');
     
     const info = await sendReceiptEmail({
       to: testEmail,
