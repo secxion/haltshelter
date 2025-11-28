@@ -320,10 +320,15 @@ if (NODE_ENV === 'production' && fs.existsSync(FRONTEND_BUILD_PATH)) {
   
   // Catch-all handler for any request that doesn't match an API route or static file
   // This is crucial for single-page applications (SPAs) like React/Vue/Angular
-  // Express 5 requires regex pattern instead of '*' wildcard
-  app.get('/*', (req, res) => {
-    console.log(`GET /* request: ${req.path}`);
-    res.sendFile(path.join(FRONTEND_BUILD_PATH, 'index.html'));
+  // Express 5: use middleware approach instead of route pattern
+  app.use((req, res, next) => {
+    // Only serve index.html for GET requests that haven't been handled
+    if (req.method === 'GET') {
+      console.log(`SPA fallback: ${req.path}`);
+      res.sendFile(path.join(FRONTEND_BUILD_PATH, 'index.html'));
+    } else {
+      next();
+    }
   });
 } else if (NODE_ENV === 'production') {
   console.warn(`⚠️ PRODUCTION WARNING: Frontend build path not found at ${FRONTEND_BUILD_PATH}. Only API routes will be available.`);
