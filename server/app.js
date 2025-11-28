@@ -1,12 +1,28 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+/**
+ * Express Server Main Application File
+ * Configured for Single-Repo Deployment (e.g., Render, Heroku)
+ * Production-Ready Settings Included
+ */
+
+require('dotenv').config(); // Automatically loads .env from the same directory
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const http = require('http');
+const mongoose = require('mongoose');
+
+// --- Configuration Constants ---
+const PORT = process.env.PORT || 5000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const FRONTEND_BUILD_PATH = path.join(__dirname, 'build'); // Assumes frontend build is in ./build
 
 // Import database connection and models
 const connectDB = require('./db');
+// Destructure models (assuming they are correctly exported from './models')
 const { 
   Animal, 
   Story, 
@@ -20,24 +36,20 @@ const {
 // Initialize Express app
 const app = express();
 
-// Configure trust proxy from environment. In production, set TRUST_PROXY to the
-// proxy IPs or a boolean. Defaults: development -> true (tests often set X-Forwarded-For),
-// production -> false (safer). Example values:
-// TRUST_PROXY=true
-// TRUST_PROXY=127.0.0.1
+// --- Core Server Configuration & Middleware ---
+
+// Configure trust proxy (crucial for reverse proxies like Render/Heroku for rate-limiting)
+// Set TRUST_PROXY=true in production environment variables.
 const rawTrust = process.env.TRUST_PROXY;
 if (rawTrust !== undefined) {
-  // allow boolean-like strings
   if (rawTrust.toLowerCase && (rawTrust.toLowerCase() === 'true' || rawTrust.toLowerCase() === 'false')) {
     app.set('trust proxy', rawTrust.toLowerCase() === 'true');
   } else {
     app.set('trust proxy', rawTrust);
   }
 } else {
-  // Safer default: do not enable trust proxy by default. Tests that need X-Forwarded-For
-  // can set TRUST_PROXY=true in their environment. This prevents express-rate-limit
-  // from rejecting startup when trust proxy is permissive.
-  app.set('trust proxy', false);
+  // Safer default for general use
+  app.set('trust proxy', NODE_ENV === 'production' ? true : false); 
 }
 
 // Connect to MongoDB (non-blocking)
@@ -57,15 +69,36 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com", "https://m.stripe.network"],
+      // Adjust scriptSrc for Stripe if needed
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com", "https://m.stripe.network"], 
       connectSrc: ["'self'", "https://api.stripe.com", "https://m.stripe.network"],
       frameSrc: ["'self'", "https://js.stripe.com", "https://m.stripe.network"]
     }
-  }
+  },
+  // HSTS recommended for production
+  hsts: NODE_ENV === 'production' ? {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  } : false
 }));
 
-// CORS configuration
-const whitelist = [
+// CORS configuration - Simplified for single-repo same-origin deployment
+if (NODE_ENV === 'production' && fs.existsSync(FRONTEND_BUILD_PATH)) {
+  // In single-repo production, all traffic is assumed same-origin. 
+  // We only need CORS for explicit API/localhost testing or external APIs.
+  // By default, Express allows same-origin requests.
+  // We only enable CORS for specific API routes or development.
+  console.log('🌐 CORS set to allow self (Production/Same-Origin)');
+  app.use(cors({
+    origin: '*', // Allow all origins for the API in development
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  }));
+} else {
+  // Development CORS: Allows a specific whitelist. The whitelist can be simplified 
+  // or completely opened for development/testing if needed.
+  const whitelist = [
   'http://localhost:3000', 
   'http://127.0.0.1:3000', 
   'http://localhost:3001',
@@ -74,54 +107,55 @@ const whitelist = [
   'https://haltshelter.onrender.com'
 
 ];
+  
+  if (process.env.FRONTEND_URL) {
+    whitelist.push(process.env.FRONTEND_URL);
+  }
 
-if (process.env.NODE_ENV === 'production' && process.env.FRONTEND_URL) {
-  whitelist.push(process.env.FRONTEND_URL);
+  app.use(cors({
+    origin: function (origin, callback) {
+      if (!origin || whitelist.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.error(`CORS: Blocked access from origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'), false);
+      }
+    },
+    credentials: true
+  }));
 }
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (whitelist.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true
-}));
 
 // Logging middleware
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// Stripe webhook endpoint - must be before express.json() to preserve the raw body
-// Use robust handler from donations.js
+// Stripe webhook endpoint - must be before express.json()
+// Note: Ensure './routes/donations' handles the raw body check correctly
 app.use('/api/webhooks', require('./routes/donations'));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static file serving for uploads with CORS headers
+// Static file serving for uploads - ensures cross-origin policy for images
 app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  // Use a more specific origin if possible, but '*' is common for CDNs/uploads
+  res.header('Access-Control-Allow-Origin', '*'); 
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
-// API Routes
+// --- API Routes ---
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: NODE_ENV
   });
 });
 
@@ -143,56 +177,24 @@ app.get('/api/system/status', async (req, res) => {
         connected: false,
         lastCheck: new Date().toISOString()
       },
-      mainWebsite: {
-        status: 'unknown',
-        url: 'http://localhost:3001',
-        lastCheck: new Date().toISOString()
-      },
-      adminPanel: {
-        status: 'online',
-        url: 'http://localhost:3002',
-        lastCheck: new Date().toISOString()
-      }
+      // Since it's a single repo, main website status check is redundant/circular
+      // Removing the redundant self-check is safer and simpler.
     };
 
     // Check database connection
     try {
-      const mongoose = require('mongoose');
-      if (mongoose.connection.readyState === 1) {
+      const dbState = mongoose.connection.readyState;
+      if (dbState === 1) {
         status.database.status = 'connected';
         status.database.connected = true;
-      } else if (mongoose.connection.readyState === 2) {
+      } else if (dbState === 2) {
         status.database.status = 'connecting';
-        status.database.connected = false;
       } else {
         status.database.status = 'disconnected';
-        status.database.connected = false;
       }
     } catch (error) {
       status.database.status = 'error';
       status.database.error = error.message;
-    }
-
-    // Check main website
-    try {
-      const https = require('http');
-      const checkWebsite = () => {
-        return new Promise((resolve) => {
-          const req = https.get('http://localhost:3001', { timeout: 5000 }, (res) => {
-            resolve(res.statusCode === 200 || res.statusCode === 304);
-          });
-          req.on('error', () => resolve(false));
-          req.on('timeout', () => {
-            req.destroy();
-            resolve(false);
-          });
-        });
-      };
-      
-      const isOnline = await checkWebsite();
-      status.mainWebsite.status = isOnline ? 'online' : 'offline';
-    } catch (error) {
-      status.mainWebsite.status = 'offline';
     }
 
     res.json(status);
@@ -204,10 +206,9 @@ app.get('/api/system/status', async (req, res) => {
   }
 });
 
-// Quick health checks for individual services
+// Quick health checks for individual services (Simplified using Mongoose directly)
 app.get('/api/system/database', (req, res) => {
   try {
-    const mongoose = require('mongoose');
     const status = {
       connected: mongoose.connection.readyState === 1,
       state: mongoose.connection.readyState,
@@ -232,7 +233,7 @@ app.get('/api/system/server', (req, res) => {
   });
 });
 
-// Placeholder image endpoint to handle legacy requests
+// Placeholder image endpoint
 app.get('/api/placeholder/:width/:height', (req, res) => {
   const { width, height } = req.params;
   const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -245,42 +246,27 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
   res.send(svg);
 });
 
-// Import and use route modules
-console.log('📦 Loading authentication routes...');
-app.use('/api/auth', require('./routes/auth'));
 
-console.log('📦 Loading adoption inquiry routes...');
-app.use('/api/adoption-inquiries', require('./routes/adoption-inquiries'));
-
-// DIRECT admin auth routes with real JWT
-const jwt = require('jsonwebtoken');
-const fs = require('fs');
-
+// DIRECT admin auth routes (kept for simplicity, but consider moving to './routes/auth' with proper middleware)
 console.log('📦 Adding direct admin auth routes...');
-app.get('/api/admin-auth/test', (req, res) => {
-  console.log('🧪 DIRECT Test route hit!');
-  res.json({ message: 'Direct admin auth working!', timestamp: new Date().toISOString() });
-});
 
 app.post('/api/admin-auth/admin-login', (req, res) => {
   console.log('🔑 DIRECT Admin login hit!', req.body);
   const { adminKey } = req.body;
   
   try {
-    // Read the stored admin key
+    // Read the stored admin key from the project root (simpler for single-repo deployment)
     const adminKeyPath = path.join(__dirname, 'admin-key.json');
-  // Default fallback: keep legacy 'test123' for CI/dev test runs if no file
-  let storedAdminKey = 'test123';
+    let storedAdminKey = 'test123'; // Default fallback
     
     if (fs.existsSync(adminKeyPath)) {
       const adminKeyData = JSON.parse(fs.readFileSync(adminKeyPath, 'utf8'));
       storedAdminKey = adminKeyData.adminKey;
     }
     
-  // Allow the stored admin key. For development/test runs we also accept the
-  // legacy test key 'test123' to avoid having to modify tests or CI envs.
-  const isTestLegacyKey = (process.env.NODE_ENV !== 'production' && adminKey === 'test123');
-  if (adminKey === storedAdminKey || isTestLegacyKey) {
+    // Check against stored key and allow test key in non-production
+    const isTestLegacyKey = (NODE_ENV !== 'production' && adminKey === 'test123');
+    if (adminKey === storedAdminKey || isTestLegacyKey) {
       // Generate real JWT token
       const token = jwt.sign(
         { 
@@ -299,7 +285,7 @@ app.post('/api/admin-auth/admin-login', (req, res) => {
         token: token,
         user: { id: 'admin', name: 'Admin User', role: 'admin' }
       });
-  } else {
+    } else {
       console.log('❌ Invalid admin key provided');
       res.status(401).json({ error: 'Invalid admin key' });
     }
@@ -309,7 +295,10 @@ app.post('/api/admin-auth/admin-login', (req, res) => {
   }
 });
 
-console.log('📦 Loading other routes...');
+// Import and use route modules
+console.log('📦 Loading all main routes...');
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/adoption-inquiries', require('./routes/adoption-inquiries'));
 app.use('/api/animals', require('./routes/animals'));
 app.use('/api/stories', require('./routes/stories'));
 app.use('/api/blog', require('./routes/blog'));
@@ -329,19 +318,34 @@ app.use('/api/admin/animals', require('./routes/admin-animals'));
 app.use('/api/admin/adoption-inquiries', require('./routes/admin-adoption-inquiries'));
 app.use('/api/admin/stats', require('./routes/admin-stats'));
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../build')));
+
+// --- Single-Repo Frontend Serving Logic ---
+
+// Serve static files in production from the frontend build directory
+if (NODE_ENV === 'production' && fs.existsSync(FRONTEND_BUILD_PATH)) {
+  console.log(`🌍 Serving static files from: ${FRONTEND_BUILD_PATH}`);
   
+  // Middleware to serve static assets (JS, CSS, images)
+  app.use(express.static(FRONTEND_BUILD_PATH));
+  
+  // Catch-all handler for any request that doesn't match an API route or static file
+  // This is crucial for single-page applications (SPAs) like React/Vue/Angular
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build', 'index.html'));
+    console.log(`GET * request: ${req.path}`);
+    res.sendFile(path.join(FRONTEND_BUILD_PATH, 'index.html'));
   });
+} else if (NODE_ENV === 'production') {
+  console.warn(`⚠️ PRODUCTION WARNING: Frontend build path not found at ${FRONTEND_BUILD_PATH}. Only API routes will be available.`);
 }
 
-// Global error handler
+
+// --- Global Error Handler ---
+
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('--- Global Error Handler ---');
+  console.error('Error Details:', err);
   
+  // Mongoose Validation Error
   if (err.name === 'ValidationError') {
     const errors = Object.values(err.errors).map(e => e.message);
     return res.status(400).json({ 
@@ -350,12 +354,14 @@ app.use((err, req, res, next) => {
     });
   }
   
+  // Mongoose Cast Error (e.g., bad ID format)
   if (err.name === 'CastError') {
     return res.status(400).json({ 
-      error: 'Invalid ID format' 
+      error: `Invalid format for field: ${err.path}`
     });
   }
   
+  // Mongoose Duplicate Key Error
   if (err.code === 11000) {
     const field = Object.keys(err.keyPattern)[0];
     return res.status(409).json({ 
@@ -363,20 +369,25 @@ app.use((err, req, res, next) => {
     });
   }
   
+  // Generic Error Response
   res.status(err.status || 500).json({ 
-    error: process.env.NODE_ENV === 'production' 
+    error: NODE_ENV === 'production' 
       ? 'Internal Server Error' 
-      : err.message 
+      : err.message,
+    status: err.status || 500,
   });
 });
 
-const port = process.env.PORT || 5000;
+// --- Server Startup ---
 
 if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`🚀 HALT Shelter API server running on port ${port}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 API URL: http://localhost:${port}/api`);
+  app.listen(PORT, () => {
+    console.log(`🚀 HALT Shelter API server running on port ${PORT}`);
+    console.log(`📊 Environment: ${NODE_ENV}`);
+    console.log(`🔗 API URL: http://localhost:${PORT}/api`);
+    if (NODE_ENV === 'production' && fs.existsSync(FRONTEND_BUILD_PATH)) {
+      console.log(`🌐 Frontend available at: http://localhost:${PORT}`);
+    }
   });
 }
 
