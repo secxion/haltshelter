@@ -320,8 +320,9 @@ if (NODE_ENV === 'production' && fs.existsSync(FRONTEND_BUILD_PATH)) {
   
   // Catch-all handler for any request that doesn't match an API route or static file
   // This is crucial for single-page applications (SPAs) like React/Vue/Angular
-  app.get('*', (req, res) => {
-    console.log(`GET * request: ${req.path}`);
+  // Express 5 requires regex pattern instead of '*' wildcard
+  app.get('/*', (req, res) => {
+    console.log(`GET /* request: ${req.path}`);
     res.sendFile(path.join(FRONTEND_BUILD_PATH, 'index.html'));
   });
 } else if (NODE_ENV === 'production') {
