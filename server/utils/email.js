@@ -1,8 +1,12 @@
-// Note: In production (Render), environment variables are injected directly.
-// In development, they're loaded from .env by server/app.js
+// Hybrid email system: Try SMTP first, fallback to SendGrid if SMTP fails
+// This handles Render's SMTP port blocking by automatically using SendGrid API
 const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-console.log('[EMAIL] Initializing SMTP configuration:', {
+console.log('[EMAIL] Initializing hybrid email system (SMTP + SendGrid fallback)');
+
+// SMTP Configuration
+console.log('[EMAIL] SMTP configuration:', {
   SMTP_HOST: process.env.SMTP_HOST || 'MISSING',
   SMTP_PORT: process.env.SMTP_PORT || 'MISSING',
   SMTP_USER: process.env.SMTP_USER || 'MISSING',
@@ -11,45 +15,71 @@ console.log('[EMAIL] Initializing SMTP configuration:', {
   SMTP_SECURE: process.env.SMTP_SECURE || 'not set (defaults to false)'
 });
 
-// Check for missing required variables
+// SendGrid Configuration
+const hasSendGrid = !!process.env.SENDGRID_API_KEY;
+console.log('[EMAIL] SendGrid configuration:', {
+  SENDGRID_API_KEY: hasSendGrid ? '***configured***' : 'MISSING',
+  SENDGRID_FROM_EMAIL: process.env.SENDGRID_FROM_EMAIL || 'contact@haltshelter.org',
+  status: hasSendGrid ? '✅ Available as fallback' : '⚠️  Not configured'
+});
+
+if (hasSendGrid) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
+// Check for missing SMTP variables
 const missingVars = [];
 if (!process.env.SMTP_HOST) missingVars.push('SMTP_HOST');
 if (!process.env.SMTP_PORT) missingVars.push('SMTP_PORT');
 if (!process.env.SMTP_USER) missingVars.push('SMTP_USER');
 if (!process.env.SMTP_PASS) missingVars.push('SMTP_PASS');
 
-if (missingVars.length > 0) {
-  console.error('[EMAIL] CRITICAL: Missing required SMTP environment variables:', missingVars.join(', '));
-  console.error('[EMAIL] Email functionality will NOT work until these are configured!');
+const smtpConfigured = missingVars.length === 0;
+
+let transporter = null;
+if (smtpConfigured) {
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+    port: parseInt(process.env.SMTP_PORT, 10) || 587,
+    secure: (process.env.SMTP_SECURE === 'true'),
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    connectionTimeout: 10 * 1000, // Reduced to 10s to fail faster
+    logger: false, // Disable verbose logging
+    debug: false
+  });
+
+  // Don't verify at startup - it fails on Render and we have SendGrid fallback
+  console.log('[EMAIL] ⚠️  SMTP verification skipped (will try at send time, fallback to SendGrid if needed)');
+} else {
+  console.error('[EMAIL] CRITICAL: Missing SMTP variables:', missingVars.join(', '));
+  if (!hasSendGrid) {
+    console.error('[EMAIL] CRITICAL: No SendGrid fallback configured either!');
+  }
 }
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-  port: parseInt(process.env.SMTP_PORT, 10) || 587,
-  secure: (process.env.SMTP_SECURE === 'true'),
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  },
-  // explicit tls options to be more compatible with some providers
-  tls: {
-    rejectUnauthorized: false
-  },
-  connectionTimeout: 30 * 1000,
-  logger: true, // Enable nodemailer logging
-  debug: false // Set to true for verbose SMTP logs
-});
 
-// Verify transporter at startup to fail fast and log useful info
-if (missingVars.length === 0) {
-  transporter.verify().then(() => {
-    console.log('[EMAIL] ✅ SMTP transporter verified — ready to send messages');
-  }).catch((err) => {
-    console.error('[EMAIL] ❌ SMTP transporter verification failed:', err && err.message ? err.message : err);
-    console.error('[EMAIL] Full error:', err);
+async function sendViaSendGrid({ to, subject, html, text }) {
+  console.log(`[EMAIL-SENDGRID] Sending via SendGrid API to: ${to}`);
+  
+  const msg = {
+    to,
+    from: process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM || 'contact@haltshelter.org',
+    subject,
+    text,
+    html
+  };
+
+  const response = await sgMail.send(msg);
+  console.log('[EMAIL-SENDGRID] ✅ Email sent successfully via SendGrid:', {
+    statusCode: response[0].statusCode
   });
-} else {
-  console.error('[EMAIL] ⚠️  Skipping SMTP verification due to missing configuration');
+  return response;
 }
 
 async function sendReceiptEmail({ to, subject, html, text }) {
@@ -64,48 +94,48 @@ async function sendReceiptEmail({ to, subject, html, text }) {
     html
   };
 
-  console.log(`[EMAIL] From address: ${mailOptions.from}`);
-
-  // Try a couple times for transient SMTP errors (e.g. 'Greeting never received')
-  const maxAttempts = 2;
-  let attempt = 0;
-  let lastErr = null;
-
-  while (attempt < maxAttempts) {
-    attempt += 1;
-    console.log(`[EMAIL] Send attempt ${attempt}/${maxAttempts}...`);
+  // Try SMTP first if configured
+  if (smtpConfigured && transporter) {
+    console.log(`[EMAIL] Trying SMTP first (${process.env.SMTP_HOST}:${process.env.SMTP_PORT})...`);
     try {
       const info = await transporter.sendMail(mailOptions);
-      // Log accepted/rejected responses for troubleshooting
-      console.log('[EMAIL] ✅ sendMail SUCCESS:', {
-        attempt,
+      console.log('[EMAIL] ✅ Email sent successfully via SMTP:', {
         accepted: info.accepted,
-        rejected: info.rejected,
-        response: info.response,
         messageId: info.messageId
       });
       return info;
-    } catch (err) {
-      lastErr = err;
-      console.error(`[EMAIL] ❌ sendMail attempt ${attempt} failed:`, {
-        message: err && err.message ? err.message : 'Unknown error',
-        code: err.code,
-        command: err.command,
-        responseCode: err.responseCode,
-        response: err.response
+    } catch (smtpErr) {
+      console.error('[EMAIL] ❌ SMTP failed:', {
+        message: smtpErr.message,
+        code: smtpErr.code
       });
-      console.error('[EMAIL] Full error object:', err);
-      // small delay before retry
-      if (attempt < maxAttempts) {
-        console.log(`[EMAIL] Waiting 800ms before retry...`);
-        await new Promise((r) => setTimeout(r, 800));
+      
+      // If SMTP fails and SendGrid is available, fallback
+      if (hasSendGrid) {
+        console.log('[EMAIL] 🔄 Falling back to SendGrid...');
+        try {
+          return await sendViaSendGrid({ to, subject, html, text });
+        } catch (sendGridErr) {
+          console.error('[EMAIL-SENDGRID] ❌ SendGrid fallback also failed:', sendGridErr.message);
+          throw sendGridErr;
+        }
+      } else {
+        console.error('[EMAIL] ❌ No SendGrid fallback available');
+        throw smtpErr;
       }
     }
   }
-
-  // after attempts
-  console.error('[EMAIL] ❌ All send attempts failed. Throwing error.');
-  throw lastErr;
+  
+  // If SMTP not configured, try SendGrid directly
+  if (hasSendGrid) {
+    console.log('[EMAIL] SMTP not configured, using SendGrid directly...');
+    return await sendViaSendGrid({ to, subject, html, text });
+  }
+  
+  // No email service configured
+  const error = new Error('No email service configured (neither SMTP nor SendGrid)');
+  console.error('[EMAIL] ❌', error.message);
+  throw error;
 }
 
 module.exports = { sendReceiptEmail };
