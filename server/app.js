@@ -328,20 +328,32 @@ app.use('/api/admin/animals', require('./routes/admin-animals'));
 app.use('/api/admin/adoption-inquiries', require('./routes/admin-adoption-inquiries'));
 app.use('/api/admin/stats', require('./routes/admin-stats'));
 
-// Serve static files in production with existence guard to avoid "Cannot GET /"
+// 2️⃣ Serve the public folder for frontend files (dev-friendly)
+const publicPath = path.join(__dirname, 'public');
+if (fs.existsSync(publicPath)) {
+  app.use(express.static(publicPath));
+
+  // SPA fallback: serve index.html for unknown non-API routes
+  app.get(/^\/(?!api).*/, (req, res) => {
+    const indexFile = path.join(publicPath, 'index.html');
+    res.sendFile(indexFile);
+  });
+} else {
+  console.warn('⚠️  Public folder not found. No frontend will be served.');
+}
+
+// 3️⃣ Production build serving (if you create a build later)
 if (process.env.NODE_ENV === 'production') {
-  const fs = require('fs');
   const buildPath = path.join(__dirname, '../build');
   if (fs.existsSync(buildPath)) {
     app.use(express.static(buildPath, { maxAge: '1y', immutable: true }));
-    // SPA fallback (do not cache index.html)
+
     app.get('*', (req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(buildPath, 'index.html'));
     });
   } else {
     console.warn('⚠️  Frontend build folder not found at ../build. Running API-only.');
-    // Optional friendly root response
     app.get('/', (req, res) => {
       res.status(200).send('HALT Shelter API running. Frontend build not found.');
     });
