@@ -1,15 +1,15 @@
 /**
- * Express Server for Monorepo Deployment on Render.
- * * Assumes:
- * - This file is in the project root.
- * - .env is in the project root.
- * - Frontend build output (index.html, assets) is in a folder named 'dist'.
- * - Server sub-files/folders (db.js, routes, models, uploads) are siblings to this file.
+ * Express Server Refactored for Monorepo Deployment on Render.
+ * * Key Changes:
+ * 1. Simplified dotenv config to look for .env in the project root.
+ * 2. Simplified Trust Proxy configuration for Render/Production.
+ * 3. Refactored Admin Login to exclusively use the secure ADMIN_KEY environment variable.
+ * 4. Corrected static file serving to point to a standard frontend build directory ('./dist').
+ * 5. Improved global error handling.
  */
 
 // --- 1. Dependencies and Environment Setup ---
-// Use standard dotenv config for deployment environments like Render.
-require('dotenv').config();
+require('dotenv').config(); // Looks for .env in the current working directory
 
 const express = require('express');
 const cors = require('cors');
@@ -20,7 +20,6 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 
 // Import database connection and models
-// Ensure these paths are correct relative to this file.
 const connectDB = require('./db'); 
 const {
   Animal,
@@ -87,7 +86,6 @@ const whitelist = [
 if (process.env.ALLOWED_ORIGINS) {
   process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean).forEach(o => whitelist.push(o));
 }
-// Dynamically add production origins from ENV
 if (isProduction) {
   if (process.env.FRONTEND_URL) whitelist.push(process.env.FRONTEND_URL);
   if (process.env.ADMIN_URL) whitelist.push(process.env.ADMIN_URL);
@@ -95,7 +93,6 @@ if (isProduction) {
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or same-origin requests)
       if (!origin) return callback(null, true); 
       if (whitelist.includes(origin)) return callback(null, true);
       console.warn(`CORS blocked origin: ${origin}`);
@@ -109,7 +106,7 @@ app.use(
 // Logging
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
-// Stripe webhook (must be raw body)
+// Stripe webhook (must be raw body and placed before body parsers)
 const donationsWebhookHandler = require('./routes/donations-webhook');
 app.post('/api/donations/webhook', express.raw({ type: 'application/json' }), donationsWebhookHandler);
 
@@ -120,11 +117,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // --- 4. Custom Routes & Handlers ---
 
 // Uploads static serving
-// Ensure 'uploads' directory is a sibling to this file.
 app.use(
   '/uploads',
   (req, res, next) => {
-    // Add CORS/CSP headers for static files for cross-origin use
     res.header('Access-Control-Allow-Origin', '*'); 
     res.header('Access-Control-Allow-Methods', 'GET');
     res.header('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -181,8 +176,6 @@ app.use('/api/admin/stats', require('./routes/admin-stats'));
 
 
 // --- 6. Admin Key Auth (Refactored for ENV variable) ---
-// *Security Improvement: Removed file-based admin-key.json for deployment stability.*
-console.log('📦 Setting up secure admin auth routes...');
 app.get('/api/admin-auth/test', (req, res) => {
   res.json({ message: 'Direct admin auth working!', timestamp: new Date().toISOString() });
 });
@@ -190,7 +183,7 @@ app.get('/api/admin-auth/test', (req, res) => {
 app.post('/api/admin-auth/admin-login', (req, res) => {
   const { adminKey } = req.body;
   try {
-    const storedAdminKey = process.env.ADMIN_KEY; // **MUST BE SET AS ENV VARIABLE**
+    const storedAdminKey = process.env.ADMIN_KEY; 
     
     if (!storedAdminKey) {
       console.error('❌ Admin login failed: ADMIN_KEY environment variable not set.');
@@ -217,10 +210,7 @@ app.post('/api/admin-auth/admin-login', (req, res) => {
 
 
 // --- 7. Frontend Static Serving & SPA Fallback ---
-// **Crucial for monorepo deployment on Render.**
-// Assumes your frontend build outputs to a folder named 'dist' (e.g., in React/Vue/Svelte projects)
-const frontendBuildPath = path.join(__dirname, 'dist'); 
-const publicPath = isProduction ? frontendBuildPath : path.join(__dirname, 'public'); // Adjust 'public' for dev/testing
+const publicPath = path.join(__dirname, 'dist'); // Assuming 'dist' is the frontend build folder
 
 // Serve static frontend files
 app.use(express.static(publicPath));
@@ -229,7 +219,6 @@ console.log(`📦 Serving static files from: ${publicPath}`);
 
 // SPA Fallback: sends index.html for all non-API and non-static routes
 app.get('*', (req, res, next) => {
-  // Exclude all API routes from being handled by the SPA fallback
   if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
     return next();
   }
@@ -237,12 +226,10 @@ app.get('*', (req, res, next) => {
   const indexFile = path.join(publicPath, 'index.html');
 
   if (fs.existsSync(indexFile)) {
-    // Send the index file for SPA routing
     return res.sendFile(indexFile);
   }
   
-  // Fallback if index.html is missing (e.g., build failed)
-  res.status(404).send('Frontend index.html not found. Check your build path.');
+  res.status(404).send('Frontend index.html not found. Check your build configuration.');
 });
 
 
@@ -264,7 +251,7 @@ app.use((err, req, res, next) => {
   const statusCode = err.status || 500;
   res.status(statusCode).json({ 
     error: isProduction ? 'Internal Server Error' : err.message,
-    details: isProduction ? undefined : err.stack // Show stack trace only in development
+    details: isProduction ? undefined : err.stack
   });
 });
 
