@@ -17,14 +17,27 @@ console.log('[EMAIL] SMTP configuration:', {
 
 // SendGrid Configuration
 const hasSendGrid = !!process.env.SENDGRID_API_KEY;
+const useSendGridFirst = (process.env.USE_SENDGRID_FIRST === 'true');
 console.log('[EMAIL] SendGrid configuration:', {
   SENDGRID_API_KEY: hasSendGrid ? '***configured***' : 'MISSING',
   SENDGRID_FROM_EMAIL: process.env.SENDGRID_FROM_EMAIL || 'contact@haltshelter.org',
-  status: hasSendGrid ? '✅ Available as fallback' : '⚠️  Not configured'
+  status: hasSendGrid ? (useSendGridFirst ? '✅ Primary' : '✅ Fallback') : '⚠️  Not configured',
+  USE_SENDGRID_FIRST: useSendGridFirst
 });
 
 if (hasSendGrid) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  // Optional EU data residency: use EU API host when configured
+  const apiHost = process.env.SENDGRID_API_HOST || (process.env.SENDGRID_DATA_RESIDENCY === 'EU' ? 'https://api.eu.sendgrid.com' : null);
+  if (apiHost) {
+    try {
+      // Supported in @sendgrid/mail v8+: setClientOptions with host override
+      sgMail.setClientOptions({ host: apiHost });
+      console.log(`[EMAIL] SendGrid client set to host: ${apiHost}`);
+    } catch (e) {
+      console.warn('[EMAIL] Unable to set SendGrid API host. Proceeding with default.', e?.message || e);
+    }
+  }
 }
 
 // Check for missing SMTP variables
@@ -94,7 +107,33 @@ async function sendReceiptEmail({ to, subject, html, text }) {
     html
   };
 
-  // Try SMTP first if configured
+  // If SendGrid is preferred and available, send with SendGrid first
+  if (hasSendGrid && useSendGridFirst) {
+    console.log('[EMAIL] Using SendGrid first as configured...');
+    try {
+      return await sendViaSendGrid({ to, subject, html, text });
+    } catch (sgErr) {
+      console.error('[EMAIL] ❌ SendGrid primary send failed:', sgErr.message);
+      // Fallback to SMTP if configured
+      if (smtpConfigured && transporter) {
+        console.log('[EMAIL] 🔄 Falling back to SMTP...');
+        try {
+          const info = await transporter.sendMail(mailOptions);
+          console.log('[EMAIL] ✅ Email sent successfully via SMTP after SendGrid failure:', {
+            accepted: info.accepted,
+            messageId: info.messageId
+          });
+          return info;
+        } catch (smtpErr) {
+          console.error('[EMAIL] ❌ SMTP fallback also failed:', smtpErr.message);
+          throw smtpErr;
+        }
+      }
+      throw sgErr;
+    }
+  }
+
+  // Otherwise, try SMTP first if configured
   if (smtpConfigured && transporter) {
     console.log(`[EMAIL] Trying SMTP first (${process.env.SMTP_HOST}:${process.env.SMTP_PORT})...`);
     try {

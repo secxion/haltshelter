@@ -52,8 +52,8 @@ In your Render dashboard for haltshelter service:
    - Key: `SENDGRID_FROM_EMAIL`
    - Value: `contact@haltshelter.org`
 
-3. Add one more to enable SendGrid (instead of SMTP):
-   - Key: `USE_SENDGRID`
+3. Prefer SendGrid immediately (skip waiting for SMTP timeout):
+   - Key: `USE_SENDGRID_FIRST`
    - Value: `true`
 
 4. Click **Save Changes** (this will redeploy your service)
@@ -88,6 +88,8 @@ https://haltshelter.onrender.com/api/test/send-test-email?email=YOUR_EMAIL
 ```
 
 You should receive a test email within seconds.
+
+If you enabled `USE_SENDGRID_FIRST=true`, the email is sent via SendGrid immediately without attempting SMTP first.
 
 ---
 
