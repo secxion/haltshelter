@@ -83,7 +83,8 @@ const Animals = () => {
 
   const fetchAvailableAnimals = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/animals');
+      const API_BASE = process.env.REACT_APP_API_URL || '/api';
+      const response = await fetch(`${API_BASE}/animals`);
       if (response.ok) {
         const data = await response.json();
         setAnimals(data);
@@ -97,7 +98,8 @@ const Animals = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/stats/dashboard');
+      const API_BASE = process.env.REACT_APP_API_URL || '/api';
+      const res = await fetch(`${API_BASE}/stats/dashboard`);
       if (!res.ok) return;
       const data = await res.json();
       if (data && data.stats && typeof data.stats.adoptionsThisMonth === 'number') {
@@ -208,7 +210,8 @@ const Animals = () => {
       }
 
       try {
-        const response = await fetch('http://localhost:5000/api/adoption-inquiries', {
+        const API_BASE = process.env.REACT_APP_API_URL || '/api';
+        const response = await fetch(`${API_BASE}/adoption-inquiries`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

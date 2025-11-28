@@ -130,12 +130,7 @@ After 8 months at HALT, Bella found her forever family. The Johnson family fell 
       return url;
     }
     
-    // If it's a relative path starting with /uploads, make it a full URL
-    if (url.startsWith('/uploads/')) {
-      return `http://localhost:5000${url}`;
-    }
-    
-    // For other paths (like mock data), return as-is and let onError handle fallback
+    // Relative paths work correctly in same-origin deployment
     return url;
   };
 

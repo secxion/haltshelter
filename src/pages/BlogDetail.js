@@ -84,7 +84,8 @@ export default function BlogDetail() {
 
   const fetchRelatedBlogs = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/blog?category=${blog.category}&limit=3`);
+      const API_BASE = process.env.REACT_APP_API_URL || '/api';
+      const response = await fetch(`${API_BASE}/blog?category=${blog.category}&limit=3`);
       const data = await response.json();
 
       if (data.success) {
@@ -303,7 +304,7 @@ export default function BlogDetail() {
         {blog.featuredImage?.url && (
           <div className="mb-8">
             <img
-              src={`http://localhost:5000${blog.featuredImage.url}`}
+              src={blog.featuredImage.url}
               alt={blog.featuredImage.alt || blog.title}
               className="w-full h-64 md:h-96 object-cover rounded-xl shadow-lg"
             />
@@ -366,7 +367,7 @@ export default function BlogDetail() {
                   {relatedBlog.featuredImage?.url && (
                     <div className="h-48 overflow-hidden">
                       <img
-                        src={`http://localhost:5000${relatedBlog.featuredImage.url}`}
+                        src={relatedBlog.featuredImage.url}
                         alt={relatedBlog.featuredImage.alt || relatedBlog.title}
                         className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                       />
