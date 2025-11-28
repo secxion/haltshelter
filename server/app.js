@@ -303,6 +303,9 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/stats', require('./routes/stats'));
 
+// Test email endpoint (for diagnosing SMTP issues in production)
+app.use('/api/test', require('./routes/test-email'));
+
 // Admin routes
 app.use('/api/admin/animals', require('./routes/admin-animals'));
 app.use('/api/admin/adoption-inquiries', require('./routes/admin-adoption-inquiries'));

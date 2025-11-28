@@ -55,8 +55,7 @@ export default function Blog() {
       if (selectedCategory) params.append('category', selectedCategory);
       if (searchTerm) params.append('search', searchTerm);
 
-      const API_BASE = process.env.REACT_APP_API_URL || '/api';
-      const response = await fetch(`${API_BASE}/blog?${params}`);
+      const response = await fetch(`http://localhost:5000/api/blog?${params}`);
       const data = await response.json();
 
       if (data.success) {
@@ -76,8 +75,7 @@ export default function Blog() {
 
   const fetchFeaturedBlogs = async () => {
     try {
-      const API_BASE = process.env.REACT_APP_API_URL || '/api';
-      const response = await fetch(`${API_BASE}/blog/featured`);
+      const response = await fetch('http://localhost:5000/api/blog/featured');
       const data = await response.json();
 
       if (data.success) {
@@ -90,8 +88,7 @@ export default function Blog() {
 
   const fetchCategories = async () => {
     try {
-      const API_BASE = process.env.REACT_APP_API_URL || '/api';
-      const response = await fetch(`${API_BASE}/blog/categories`);
+      const response = await fetch('http://localhost:5000/api/blog/categories');
       const data = await response.json();
 
       if (data.success) {
@@ -132,7 +129,7 @@ export default function Blog() {
       {blog.featuredImage?.url && (
         <div className={`relative ${featured ? 'h-64' : 'h-48'} overflow-hidden`}>
           <img
-            src={blog.featuredImage.url}
+            src={`http://localhost:5000${blog.featuredImage.url}`}
             alt={blog.featuredImage.alt || blog.title}
             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           />
