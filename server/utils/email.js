@@ -17,12 +17,12 @@ console.log('[EMAIL] SMTP configuration:', {
 
 // SendGrid Configuration
 const hasSendGrid = !!process.env.SENDGRID_API_KEY;
-const useSendGridFirst = (process.env.USE_SENDGRID_FIRST === 'true');
+const useSendGridFirst = false; // FORCE SMTP FIRST - overriding USE_SENDGRID_FIRST env var
 console.log('[EMAIL] SendGrid configuration:', {
   SENDGRID_API_KEY: hasSendGrid ? '***configured***' : 'MISSING',
   SENDGRID_FROM_EMAIL: process.env.SENDGRID_FROM_EMAIL || 'contact@haltshelter.org',
-  status: hasSendGrid ? (useSendGridFirst ? '✅ Primary' : '✅ Fallback') : '⚠️  Not configured',
-  USE_SENDGRID_FIRST: useSendGridFirst
+  status: hasSendGrid ? '✅ Fallback only' : '⚠️  Not configured',
+  USE_SENDGRID_FIRST: 'DISABLED - SMTP is primary'
 });
 
 if (hasSendGrid) {
@@ -46,24 +46,31 @@ const smtpConfigured = missingVars.length === 0;
 
 let transporter = null;
 if (smtpConfigured) {
+  const smtpPort = parseInt(process.env.SMTP_PORT, 10) || 465;
+  const smtpSecure = (process.env.SMTP_SECURE === 'true') || smtpPort === 465;
+  
+  console.log(`[EMAIL] 🔧 Configuring SMTP transporter: ${process.env.SMTP_HOST}:${smtpPort} (secure=${smtpSecure})`);
+  
   transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-    port: parseInt(process.env.SMTP_PORT, 10) || 587,
-    secure: (process.env.SMTP_SECURE === 'true'),
+    port: smtpPort,
+    secure: smtpSecure, // true for 465, false for other ports
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
     },
     tls: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
     },
-    connectionTimeout: 10 * 1000, // Reduced to 10s to fail faster
-    logger: false, // Disable verbose logging
-    debug: false
+    connectionTimeout: 15000, // 15s timeout
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    logger: true, // Enable logging for SMTP debugging
+    debug: true // Enable debug output
   });
 
-  // Don't verify at startup - it fails on Render and we have SendGrid fallback
-  console.log('[EMAIL] ⚠️  SMTP verification skipped (will try at send time, fallback to SendGrid if needed)');
+  console.log('[EMAIL] ✅ SMTP transporter configured (primary email service)');
 } else {
   console.error('[EMAIL] CRITICAL: Missing SMTP variables:', missingVars.join(', '));
   if (!hasSendGrid) {
@@ -130,28 +137,35 @@ async function sendReceiptEmail({ to, subject, html, text }) {
 
   // Otherwise, try SMTP first if configured
   if (smtpConfigured && transporter) {
-    console.log(`[EMAIL] Trying SMTP first (${process.env.SMTP_HOST}:${process.env.SMTP_PORT})...`);
+    console.log(`[EMAIL] 🔌 Attempting SMTP send via ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}...`);
+    console.log(`[EMAIL] From: ${mailOptions.from} | To: ${to}`);
+    
     try {
       const info = await transporter.sendMail(mailOptions);
       console.log('[EMAIL] ✅ Email sent successfully via SMTP:', {
         accepted: info.accepted,
-        messageId: info.messageId
+        rejected: info.rejected,
+        messageId: info.messageId,
+        response: info.response
       });
       return info;
     } catch (smtpErr) {
-      console.error('[EMAIL] ❌ SMTP failed:', {
+      console.error('[EMAIL] ❌ SMTP send failed:', {
         message: smtpErr.message,
-        code: smtpErr.code
+        code: smtpErr.code,
+        command: smtpErr.command,
+        response: smtpErr.response,
+        responseCode: smtpErr.responseCode
       });
       
       // If SMTP fails and SendGrid is available, fallback
       if (hasSendGrid) {
-        console.log('[EMAIL] 🔄 Falling back to SendGrid...');
+        console.log('[EMAIL] 🔄 SMTP failed, falling back to SendGrid...');
         try {
           return await sendViaSendGrid({ to, subject, html, text });
         } catch (sendGridErr) {
           console.error('[EMAIL-SENDGRID] ❌ SendGrid fallback also failed:', sendGridErr.message);
-          throw sendGridErr;
+          throw new Error(`Both SMTP and SendGrid failed. SMTP: ${smtpErr.message}. SendGrid: ${sendGridErr.message}`);
         }
       } else {
         console.error('[EMAIL] ❌ No SendGrid fallback available');
