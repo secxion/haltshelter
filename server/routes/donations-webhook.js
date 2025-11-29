@@ -4,6 +4,9 @@ const { logToFile } = require('../utils/fileLogger');
 
 // Extracted Stripe webhook handler for raw body mounting.
 module.exports = async function donationsWebhookHandler(req, res) {
+  console.log('[WEBHOOK] ========== WEBHOOK ENDPOINT HIT ==========');
+  console.log('[WEBHOOK] Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('[WEBHOOK] Body length:', req.body ? req.body.length : 'NO BODY');
   logToFile('[DIAG] Webhook handler entered');
   const sig = req.headers['stripe-signature'];
   let event;
