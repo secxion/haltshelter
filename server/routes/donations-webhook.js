@@ -14,6 +14,11 @@ module.exports = async function donationsWebhookHandler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // Additional high-level event logging for diagnostics
+  try {
+    logToFile(`[WEBHOOK] Received event id=${event.id} type=${event.type}`);
+  } catch(e) {}
+
   switch (event.type) {
     case 'payment_intent.succeeded':
     case 'invoice.payment_succeeded':
@@ -22,6 +27,7 @@ module.exports = async function donationsWebhookHandler(req, res) {
       let paymentIntent, invoice;
       if (event.type === 'payment_intent.succeeded') {
         paymentIntent = event.data.object;
+        logToFile(`[WEBHOOK] payment_intent.succeeded intent=${paymentIntent.id}`);
       } else {
         invoice = event.data.object;
         try {
@@ -35,6 +41,7 @@ module.exports = async function donationsWebhookHandler(req, res) {
         if (invoice && invoice.payment_intent) {
           try {
             paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent);
+            logToFile(`[WEBHOOK] Retrieved paymentIntent ${paymentIntent.id} from invoice ${invoice.id}`);
           } catch (e) {
             logToFile(`[DIAG] Could not retrieve paymentIntent for invoice: ${e}`);
           }
@@ -69,7 +76,7 @@ module.exports = async function donationsWebhookHandler(req, res) {
           }
         }
         if (donation) {
-          logToFile('[DIAG] Duplicate payment event received, donation already exists.');
+          logToFile(`[DIAG] Duplicate payment event received; donation exists transactionId=${donation.transactionId}`);
           // If receipt already sent, skip email sending to ensure idempotency
           if (donation.receiptSent) {
             logToFile('[DIAG] Receipt already sent for this donation. Skipping email.');
@@ -215,11 +222,13 @@ module.exports = async function donationsWebhookHandler(req, res) {
               `;
               const text = `Dear ${donorNameFinal},\n\nThank you for your generous donation to HALT. Here are your donation details:\n\nDonor Name: ${donorNameFinal}\nDonor Email: ${donorEmailFinal}\nAmount: $${donation.amount} ${donation.currency || 'USD'}\nDonation Type: ${donation.donationType.charAt(0).toUpperCase() + donation.donationType.slice(1)}\nPayment Method: ${paymentMethodStr}\nTransaction ID: ${donation.transactionId}\nDate: ${dateStr} UTC\nCategory: ${donation.category || 'general'}\nRecurring: ${recurringStr}\n\nYour support helps us continue our mission to help animals live and thrive.\n\nWith gratitude,\nThe HALT Team`;
               try {
+                logToFile(`[RECEIPT] Sending receipt to ${donorEmailFinal} for transaction ${donation.transactionId}`);
                 const info = await sendReceiptEmail({ to: donorEmailFinal, subject, html, text });
                 logToFile(`[DIAG] Receipt email sent to ${donorEmailFinal} (accepted: ${JSON.stringify(info.accepted)}, rejected: ${JSON.stringify(info.rejected)})`);
                 donation.receiptSent = true;
                 donation.receiptSentAt = new Date();
                 await donation.save();
+                logToFile(`[RECEIPT] Updated donation with receiptSentAt for transaction ${donation.transactionId}`);
               } catch (emailErr) {
                 logToFile(`[DIAG] Error sending receipt email: ${emailErr && emailErr.message ? emailErr.message : emailErr}`);
               }
