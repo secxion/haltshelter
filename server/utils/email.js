@@ -27,16 +27,11 @@ console.log('[EMAIL] SendGrid configuration:', {
 
 if (hasSendGrid) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  // Optional EU data residency: use EU API host when configured
-  const apiHost = process.env.SENDGRID_API_HOST || (process.env.SENDGRID_DATA_RESIDENCY === 'EU' ? 'https://api.eu.sendgrid.com' : null);
-  if (apiHost) {
-    try {
-      // Supported in @sendgrid/mail v8+: setClientOptions with host override
-      sgMail.setClientOptions({ host: apiHost });
-      console.log(`[EMAIL] SendGrid client set to host: ${apiHost}`);
-    } catch (e) {
-      console.warn('[EMAIL] Unable to set SendGrid API host. Proceeding with default.', e?.message || e);
-    }
+  // Note: EU API host configuration via setClientOptions is not supported in all versions
+  // SendGrid will use default US endpoint unless EU subuser is configured
+  if (process.env.SENDGRID_DATA_RESIDENCY === 'EU' || process.env.SENDGRID_API_HOST) {
+    console.log('[EMAIL] EU data residency requested but client host override not available in this version');
+    console.log('[EMAIL] Ensure you are using an EU-pinned subuser in SendGrid if EU compliance required');
   }
 }
 
