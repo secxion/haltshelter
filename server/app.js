@@ -120,8 +120,15 @@ if (NODE_ENV === 'production' && fs.existsSync(FRONTEND_BUILD_PATH)) {
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Stripe webhook endpoint - MUST be before express.json() to preserve raw body
+// Add a lightweight logger to confirm requests hit this path at all
 const donationsWebhookHandler = require('./routes/donations-webhook');
-app.post('/api/donations/webhook', express.raw({ type: 'application/json' }), donationsWebhookHandler);
+app.post('/api/donations/webhook', (req, res, next) => {
+  try {
+    console.log('[WEBHOOK] Incoming request to /api/donations/webhook');
+    console.log('[WEBHOOK] Headers:', JSON.stringify(req.headers));
+  } catch (e) {}
+  next();
+}, express.raw({ type: 'application/json' }), donationsWebhookHandler);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
