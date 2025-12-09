@@ -17,12 +17,13 @@ console.log('[EMAIL] SMTP configuration:', {
 
 // SendGrid Configuration
 const hasSendGrid = !!process.env.SENDGRID_API_KEY;
-const useSendGridFirst = true; // FORCE SMTP FIRST - overriding USE_SENDGRID_FIRST env var
+const useSendGridFirst = true;
+
 console.log('[EMAIL] SendGrid configuration:', {
   SENDGRID_API_KEY: hasSendGrid ? '***configured***' : 'MISSING',
   SENDGRID_FROM_EMAIL: process.env.SENDGRID_FROM_EMAIL || 'contact@haltshelter.org',
-  status: hasSendGrid ? '✅ Fallback only' : '⚠️  Not configured',
-  USE_SENDGRID_FIRST: 'DISABLED - SMTP is primary'
+  status: hasSendGrid ? '✅ SendGrid ENABLED' : '⚠️  Not configured',
+  USE_SENDGRID_FIRST: useSendGridFirst ? 'ENABLED - SendGrid is primary' : 'DISABLED - SMTP is primary'
 });
 
 if (hasSendGrid) {
@@ -71,12 +72,7 @@ if (smtpConfigured) {
   });
 
   console.log('[EMAIL] ✅ SMTP transporter configured (primary email service)');
-} else {
-  console.error('[EMAIL] CRITICAL: Missing SMTP variables:', missingVars.join(', '));
-  if (!hasSendGrid) {
-    console.error('[EMAIL] CRITICAL: No SendGrid fallback configured either!');
-  }
-}
+} 
 
 
 async function sendViaSendGrid({ to, subject, html, text }) {
