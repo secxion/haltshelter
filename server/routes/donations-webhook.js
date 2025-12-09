@@ -6,15 +6,25 @@ const { logToFile } = require('../utils/fileLogger');
 module.exports = async function donationsWebhookHandler(req, res) {
   const timestamp = new Date().toISOString();
   console.log(`[WEBHOOK] ========== WEBHOOK ENDPOINT HIT AT ${timestamp} ==========`);
+  console.log('[WEBHOOK] Method:', req.method);
+  console.log('[WEBHOOK] URL:', req.url);
   console.log('[WEBHOOK] Headers:', JSON.stringify(req.headers, null, 2));
   console.log('[WEBHOOK] Body length:', req.body ? req.body.length : 'NO BODY');
+  console.log('[WEBHOOK] Webhook secret present:', !!process.env.STRIPE_WEBHOOK_SECRET);
   logToFile(`[DIAG] Webhook handler entered at ${timestamp}`);
+  
   const sig = req.headers['stripe-signature'];
+  if (!sig) {
+    console.error('[WEBHOOK] ❌ Missing stripe-signature header');
+    return res.status(400).send('Missing stripe-signature header');
+  }
+  
   let event;
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('[WEBHOOK] ❌ Webhook signature verification failed:', err.message);
+    logToFile(`[WEBHOOK] Signature verification failed: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -191,9 +201,16 @@ module.exports = async function donationsWebhookHandler(req, res) {
         } else if (donationJustCreated || !donation.receiptSent) {
           try {
             const { sendReceiptEmail } = require('../utils/email');
+            console.log('[WEBHOOK] 📧 Preparing to send receipt email...');
+            console.log('[WEBHOOK] Donation object:', {
+              donorInfo: donation.donorInfo,
+              email: donation.email,
+              transactionId: donation.transactionId
+            });
+            
             const donorEmailFinal = (donation.donorInfo && donation.donorInfo.email) || donation.email || (paymentIntent && paymentIntent.receipt_email);
             if (!donorEmailFinal) {
-              const noEmailMsg = '[WEBHOOK] ⚠️  No donor email found for receipt.';
+              const noEmailMsg = '[WEBHOOK] ⚠️  No donor email found for receipt. Cannot send email.';
               console.log(noEmailMsg);
               logToFile(noEmailMsg);
             } else {
@@ -231,19 +248,33 @@ module.exports = async function donationsWebhookHandler(req, res) {
               `;
               const text = `Dear ${donorNameFinal},\n\nThank you for your generous donation to HALT. Here are your donation details:\n\nDonor Name: ${donorNameFinal}\nDonor Email: ${donorEmailFinal}\nAmount: $${donation.amount} ${donation.currency || 'USD'}\nDonation Type: ${donation.donationType.charAt(0).toUpperCase() + donation.donationType.slice(1)}\nPayment Method: ${paymentMethodStr}\nTransaction ID: ${donation.transactionId}\nDate: ${dateStr} UTC\nCategory: ${donation.category || 'general'}\nRecurring: ${recurringStr}\n\nYour support helps us continue our mission to help animals live and thrive.\n\nWith gratitude,\nThe HALT Team`;
               try {
-                console.log(`[WEBHOOK] 📨 Sending receipt to ${donorEmailFinal}...`);
+                console.log(`[WEBHOOK] 📨 Sending receipt email to ${donorEmailFinal}...`);
+                console.log(`[WEBHOOK] Email details:`, {
+                  to: donorEmailFinal,
+                  subject: subject,
+                  donorName: donorNameFinal
+                });
                 logToFile(`[RECEIPT] Sending receipt to ${donorEmailFinal} for transaction ${donation.transactionId}`);
+                
                 const info = await sendReceiptEmail({ to: donorEmailFinal, subject, html, text });
+                
                 console.log(`[WEBHOOK] ✅ Receipt sent successfully to ${donorEmailFinal}`);
-                logToFile(`[DIAG] Receipt email sent to ${donorEmailFinal} (accepted: ${JSON.stringify(info.accepted)}, rejected: ${JSON.stringify(info.rejected)})`);
+                console.log(`[WEBHOOK] Email response:`, {
+                  statusCode: info[0]?.statusCode || 'N/A',
+                  messageId: info[0]?.headers?.['x-message-id'] || 'N/A'
+                });
+                logToFile(`[RECEIPT] Email successfully sent to ${donorEmailFinal}`);
+                
+                // Mark receipt as sent
                 donation.receiptSent = true;
                 donation.receiptSentAt = new Date();
                 await donation.save();
-                console.log(`[WEBHOOK] 💾 Donation updated with receiptSent flag`);
-                logToFile(`[RECEIPT] Updated donation with receiptSentAt for transaction ${donation.transactionId}`);
+                console.log(`[WEBHOOK] 💾 Donation marked with receiptSent=true`);
+                logToFile(`[RECEIPT] Updated donation record with receiptSentAt timestamp`);
               } catch (emailErr) {
-                console.error(`[WEBHOOK] ❌ Email send failed:`, emailErr.message);
-                logToFile(`[DIAG] Error sending receipt email: ${emailErr && emailErr.message ? emailErr.message : emailErr}`);
+                console.error(`[WEBHOOK] ❌ Email send failed for ${donorEmailFinal}:`, emailErr.message);
+                console.error(`[WEBHOOK] Full error:`, emailErr);
+                logToFile(`[DIAG] Error sending receipt email to ${donorEmailFinal}: ${emailErr && emailErr.message ? emailErr.message : JSON.stringify(emailErr)}`);
               }
             }
           } catch (err) {
