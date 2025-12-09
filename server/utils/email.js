@@ -17,7 +17,7 @@ console.log('[EMAIL] SMTP configuration:', {
 
 // SendGrid Configuration
 const hasSendGrid = !!process.env.SENDGRID_API_KEY;
-const useSendGridFirst = false; // FORCE SMTP FIRST - overriding USE_SENDGRID_FIRST env var
+const useSendGridFirst = true; // FORCE SMTP FIRST - overriding USE_SENDGRID_FIRST env var
 console.log('[EMAIL] SendGrid configuration:', {
   SENDGRID_API_KEY: hasSendGrid ? '***configured***' : 'MISSING',
   SENDGRID_FROM_EMAIL: process.env.SENDGRID_FROM_EMAIL || 'contact@haltshelter.org',
@@ -42,7 +42,7 @@ if (!process.env.SMTP_PORT) missingVars.push('SMTP_PORT');
 if (!process.env.SMTP_USER) missingVars.push('SMTP_USER');
 if (!process.env.SMTP_PASS) missingVars.push('SMTP_PASS');
 
-const smtpConfigured = missingVars.length === 0;
+const smtpConfigured = false;
 
 let transporter = null;
 if (smtpConfigured) {
