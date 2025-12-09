@@ -438,7 +438,7 @@ Donation Type: ${donationType.charAt(0).toUpperCase() + donationType.slice(1)}
 Transaction ID: ${transactionId}
 Date (UTC):   ${dateStr}
 
-Your donation is 100% secure and has been processed through Stripe. A copy of this receipt has been saved for your records.
+Your donation is 100% secure and has been processed. A copy of this receipt has been saved for your records.
 
 HOW YOUR DONATION HELPS
 =======================
