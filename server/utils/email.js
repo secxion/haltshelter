@@ -28,8 +28,6 @@ console.log('[EMAIL] SendGrid configuration:', {
 
 if (hasSendGrid) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  // Note: EU API host configuration via setClientOptions is not supported in all versions
-  // SendGrid will use default US endpoint unless EU subuser is configured
   if (process.env.SENDGRID_DATA_RESIDENCY === 'EU' || process.env.SENDGRID_API_HOST) {
     console.log('[EMAIL] EU data residency requested but client host override not available in this version');
     console.log('[EMAIL] Ensure you are using an EU-pinned subuser in SendGrid if EU compliance required');
@@ -43,7 +41,13 @@ if (!process.env.SMTP_PORT) missingVars.push('SMTP_PORT');
 if (!process.env.SMTP_USER) missingVars.push('SMTP_USER');
 if (!process.env.SMTP_PASS) missingVars.push('SMTP_PASS');
 
-const smtpConfigured = false;
+// Dynamically determine if SMTP is configured
+const smtpConfigured = missingVars.length === 0;
+
+if (missingVars.length > 0) {
+  console.log('[EMAIL] ⚠️  SMTP not fully configured. Missing:', missingVars.join(', '));
+  console.log('[EMAIL] Will rely on SendGrid if available');
+}
 
 let transporter = null;
 if (smtpConfigured) {
@@ -76,7 +80,7 @@ if (smtpConfigured) {
 
 
 async function sendViaSendGrid({ to, subject, html, text }) {
-  console.log(`[EMAIL-SENDGRID] Sending via SendGrid API to: ${to}`);
+  console.log(`[EMAIL-SENDGRID] 📤 Sending via SendGrid API to: ${to}`);
   
   const msg = {
     to,
@@ -86,16 +90,43 @@ async function sendViaSendGrid({ to, subject, html, text }) {
     html
   };
 
-  const response = await sgMail.send(msg);
-  console.log('[EMAIL-SENDGRID] ✅ Email sent successfully via SendGrid:', {
-    statusCode: response[0].statusCode
+  console.log('[EMAIL-SENDGRID] Message details:', {
+    to: msg.to,
+    from: msg.from,
+    subject: msg.subject
   });
-  return response;
+
+  try {
+    const response = await sgMail.send(msg);
+    console.log('[EMAIL-SENDGRID] ✅ Email sent successfully via SendGrid:', {
+      statusCode: response[0].statusCode,
+      messageId: response[0].headers?.['x-message-id']
+    });
+    return response;
+  } catch (error) {
+    console.error('[EMAIL-SENDGRID] ❌ SendGrid error details:', {
+      message: error.message,
+      code: error.code,
+      statusCode: error.response?.statusCode,
+      body: error.response?.body
+    });
+    throw error;
+  }
 }
 
 async function sendReceiptEmail({ to, subject, html, text }) {
-  console.log(`[EMAIL] Attempting to send email to: ${to}`);
+  console.log(`[EMAIL] ========== EMAIL SEND REQUEST ==========`);
+  console.log(`[EMAIL] To: ${to}`);
   console.log(`[EMAIL] Subject: ${subject}`);
+  console.log(`[EMAIL] SendGrid available: ${hasSendGrid}`);
+  console.log(`[EMAIL] SMTP configured: ${smtpConfigured}`);
+  
+  // Validate recipient email
+  if (!to || typeof to !== 'string' || !to.includes('@')) {
+    const error = new Error(`Invalid recipient email: ${to}`);
+    console.error('[EMAIL] ❌', error.message);
+    throw error;
+  }
   
   const mailOptions = {
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
@@ -105,28 +136,35 @@ async function sendReceiptEmail({ to, subject, html, text }) {
     html
   };
 
-  // If SendGrid is preferred and available, send with SendGrid first
+  // SendGrid is primary - try it first if available
   if (hasSendGrid && useSendGridFirst) {
-    console.log('[EMAIL] Using SendGrid first as configured...');
+    console.log('[EMAIL] 📧 Using SendGrid as primary email service...');
     try {
-      return await sendViaSendGrid({ to, subject, html, text });
+      const result = await sendViaSendGrid({ to, subject, html, text });
+      console.log('[EMAIL] ✅ Email delivered successfully via SendGrid');
+      return result;
     } catch (sgErr) {
       console.error('[EMAIL] ❌ SendGrid primary send failed:', sgErr.message);
+      console.error('[EMAIL] SendGrid error code:', sgErr.code);
+      
       // Fallback to SMTP if configured
       if (smtpConfigured && transporter) {
-        console.log('[EMAIL] 🔄 Falling back to SMTP...');
+        console.log('[EMAIL] 🔄 Attempting SMTP fallback...');
         try {
           const info = await transporter.sendMail(mailOptions);
-          console.log('[EMAIL] ✅ Email sent successfully via SMTP after SendGrid failure:', {
+          console.log('[EMAIL] ✅ Email sent successfully via SMTP fallback:', {
             accepted: info.accepted,
             messageId: info.messageId
           });
           return info;
         } catch (smtpErr) {
           console.error('[EMAIL] ❌ SMTP fallback also failed:', smtpErr.message);
-          throw smtpErr;
+          const combinedError = new Error(`Both SendGrid and SMTP failed. SendGrid: ${sgErr.message}, SMTP: ${smtpErr.message}`);
+          throw combinedError;
         }
       }
+      
+      console.error('[EMAIL] ❌ No fallback available, SendGrid was only option');
       throw sgErr;
     }
   }
