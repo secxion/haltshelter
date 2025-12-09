@@ -113,6 +113,7 @@ async function handlePaymentIntentSucceeded(event, res) {
     let donorName = metadata.donor_name || metadata.donorName || 'Supporter';
     let donorEmail = metadata.donor_email || metadata.donorEmail || paymentIntent.receipt_email;
     const donationType = metadata.donation_type || metadata.donationType || 'one-time';
+    const isEmergency = metadata.is_emergency === 'true' || metadata.is_emergency === true;
     const amount = paymentIntent.amount / 100;
     const currency = paymentIntent.currency.toUpperCase();
     const transactionId = paymentIntent.id;
@@ -210,6 +211,7 @@ async function handlePaymentIntentSucceeded(event, res) {
       amount,
       currency,
       donationType,
+      isEmergency,
       transactionId,
       timestamp: new Date(paymentIntent.created * 1000)
     });
@@ -220,6 +222,7 @@ async function handlePaymentIntentSucceeded(event, res) {
       amount,
       currency,
       donationType,
+      isEmergency,
       transactionId,
       timestamp: new Date(paymentIntent.created * 1000)
     });
@@ -319,6 +322,7 @@ function generateEmailHtml({
   amount,
   currency,
   donationType,
+  isEmergency,
   transactionId,
   timestamp
 }) {
@@ -330,6 +334,10 @@ function generateEmailHtml({
     hour: '2-digit',
     minute: '2-digit'
   });
+  
+  const donationTypeDisplay = isEmergency 
+    ? `${donationType.charAt(0).toUpperCase() + donationType.slice(1)} (Emergency)`
+    : donationType.charAt(0).toUpperCase() + donationType.slice(1);
 
   return `
 <!DOCTYPE html>
@@ -372,7 +380,7 @@ function generateEmailHtml({
         </tr>
         <tr>
           <td>Donation Type:</td>
-          <td>${donationType.charAt(0).toUpperCase() + donationType.slice(1)}</td>
+          <td>${donationTypeDisplay}</td>
         </tr>
         <tr>
           <td>Transaction ID:</td>
@@ -381,6 +389,10 @@ function generateEmailHtml({
         <tr>
           <td>Date (UTC):</td>
           <td>${dateStr}</td>
+        </tr>
+        <tr>
+          <td>Tax Deductible:</td>
+          <td>Yes</td>
         </tr>
       </table>
       
@@ -410,6 +422,7 @@ function generateEmailText({
   amount,
   currency,
   donationType,
+  isEmergency,
   transactionId,
   timestamp
 }) {
@@ -421,6 +434,10 @@ function generateEmailText({
     hour: '2-digit',
     minute: '2-digit'
   });
+  
+  const donationTypeDisplay = isEmergency 
+    ? `${donationType.charAt(0).toUpperCase() + donationType.slice(1)} (Emergency)`
+    : donationType.charAt(0).toUpperCase() + donationType.slice(1);
 
   return `
 Thank You for Your Donation to HALT!
@@ -434,9 +451,10 @@ DONATION DETAILS
 Donor Name:   ${donorName}
 Email:        ${donorEmail}
 Amount:       $${amount.toFixed(2)} ${currency}
-Donation Type: ${donationType.charAt(0).toUpperCase() + donationType.slice(1)}
+Donation Type: ${donationTypeDisplay}
 Transaction ID: ${transactionId}
 Date (UTC):   ${dateStr}
+Tax Deductible: Yes
 
 Your donation is 100% secure and has been processed. A copy of this receipt has been saved for your records.
 
