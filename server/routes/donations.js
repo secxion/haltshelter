@@ -136,6 +136,8 @@ router.post('/create-payment-intent', [
     });
  
     // Create Stripe PaymentIntent with frontend-compatible metadata
+    // NOTE: We intentionally do NOT set receipt_email to prevent Stripe from
+    // sending automatic receipts. Our webhook handler sends branded emails instead.
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount, // Frontend already sends in cents
       currency: currency.toLowerCase(),
@@ -145,6 +147,7 @@ router.post('/create-payment-intent', [
         donation_type: metadata.donation_type || 'one-time',
         is_emergency: metadata.is_emergency || 'false'
       }
+      // receipt_email is NOT set - we handle emails via webhook
     });
 
     console.log('✅ Payment intent created:', paymentIntent.id);
@@ -541,4 +544,3 @@ router.post('/send-receipt-manual', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Server error', details: err.message });
   }
 });
-

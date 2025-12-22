@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const statsSchema = new Schema({
+  // Legacy/Homepage stats
   animalsRescued: {
     type: Number,
     default: 5,
@@ -22,6 +23,24 @@ const statsSchema = new Schema({
     default: 1900,
     min: 0
   },
+  
+  // Donate page "Recent Impact" stats
+  rescuedThisMonth: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  medicalTreatments: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  spayNeuterCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  
   lastUpdated: {
     type: Date,
     default: Date.now

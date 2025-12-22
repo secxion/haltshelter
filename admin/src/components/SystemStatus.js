@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 
 const SystemStatus = () => {
   const [systemStatus, setSystemStatus] = useState({
     server: { status: 'checking...', uptime: 0, memory: { used: 0, total: 0 } },
     database: { status: 'checking...', connected: false },
-    mainWebsite: { status: 'checking...', url: 'http://localhost:3001' },
-    adminPanel: { status: 'online', url: 'http://localhost:3002' }
+    mainWebsite: { status: 'checking...', url: process.env.REACT_APP_MAIN_SITE_URL || 'https://haltshelter.onrender.com' },
+    adminPanel: { status: 'online', url: window.location.origin }
   });
   
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -15,7 +16,7 @@ const SystemStatus = () => {
   const fetchSystemStatus = async () => {
     try {
       setError(null);
-      const response = await fetch('http://localhost:5000/api/system/status');
+      const response = await fetch(`${API_BASE_URL}/system/status`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -111,6 +112,13 @@ const SystemStatus = () => {
     </div>
   );
 
+  // Safely access nested properties
+  const safeStatus = systemStatus || {};
+  const serverStatus = safeStatus.server || {};
+  const dbStatus = safeStatus.database || {};
+  const mainSiteStatus = safeStatus.mainWebsite || {};
+  const adminStatus = safeStatus.adminPanel || {};
+
   return (
     <div className="bg-gray-50 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
@@ -138,49 +146,49 @@ const SystemStatus = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatusCard
           title="Main Website"
-          status={systemStatus.mainWebsite.status}
-          url={systemStatus.mainWebsite.url}
+          status={mainSiteStatus.status}
+          url={mainSiteStatus.url}
         />
         
         <StatusCard
           title="Database"
-          status={systemStatus.database.status}
-          details={systemStatus.database.connected ? 'Connected' : 'Disconnected'}
+          status={dbStatus.status}
+          details={dbStatus.connected ? 'Connected' : 'Disconnected'}
         />
         
         <StatusCard
           title="Server"
-          status={systemStatus.server.status}
-          details={`Uptime: ${formatUptime(systemStatus.server.uptime)} | Memory: ${systemStatus.server.memory?.used || 0}MB`}
+          status={serverStatus.status}
+          details={`Uptime: ${formatUptime(serverStatus.uptime)} | Memory: ${serverStatus.memory?.used || 0}MB`}
         />
         
         <StatusCard
           title="Admin Panel"
-          status={systemStatus.adminPanel.status}
-          url={systemStatus.adminPanel.url}
+          status={adminStatus.status}
+          url={adminStatus.url}
         />
       </div>
 
       {/* Detailed server info */}
-      {systemStatus.server.status === 'online' && (
+      {serverStatus.status === 'online' && (
         <div className="mt-4 p-4 bg-white rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-900 mb-2">Server Details</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
             <div>
               <span className="text-gray-500">Uptime:</span>
-              <div className="font-medium">{formatUptime(systemStatus.server.uptime)}</div>
+              <div className="font-medium">{formatUptime(serverStatus.uptime)}</div>
             </div>
             <div>
               <span className="text-gray-500">Memory Used:</span>
-              <div className="font-medium">{systemStatus.server.memory?.used || 0} MB</div>
+              <div className="font-medium">{serverStatus.memory?.used || 0} MB</div>
             </div>
             <div>
               <span className="text-gray-500">Memory Total:</span>
-              <div className="font-medium">{systemStatus.server.memory?.total || 0} MB</div>
+              <div className="font-medium">{serverStatus.memory?.total || 0} MB</div>
             </div>
             <div>
               <span className="text-gray-500">Last Check:</span>
-              <div className="font-medium">{new Date(systemStatus.server.lastCheck).toLocaleTimeString()}</div>
+              <div className="font-medium">{serverStatus.lastCheck ? new Date(serverStatus.lastCheck).toLocaleTimeString() : 'N/A'}</div>
             </div>
           </div>
         </div>

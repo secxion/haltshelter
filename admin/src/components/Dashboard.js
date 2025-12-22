@@ -7,6 +7,7 @@ import {
   TrendingUpIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
+import { API_BASE_URL } from '../config';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -42,7 +43,7 @@ const Dashboard = () => {
       
       console.log('🔄 Fetching dashboard data...');
       
-      const statsResponse = await fetch('http://localhost:5000/api/stats/dashboard');
+      const statsResponse = await fetch(`${API_BASE_URL}/stats/dashboard`);
       
       console.log('📊 Stats response status:', statsResponse.status);
       const statsData = await statsResponse.json();
@@ -61,7 +62,7 @@ const Dashboard = () => {
         console.error('❌ Stats API error:', statsData.error);
       }
       
-      const activityResponse = await fetch('http://localhost:5000/api/stats/recent-activity');
+      const activityResponse = await fetch(`${API_BASE_URL}/stats/recent-activity`);
       
       console.log('📈 Activity response status:', activityResponse.status);
       const activityData = await activityResponse.json();
@@ -139,7 +140,7 @@ const Dashboard = () => {
       changeType: 'positive'
     },
       {
-        name: 'Adoptions This Month',
+        name: 'Adoptions This Year',
         value: stats.adoptionsThisMonth || 0,
         icon: TrendingUpIcon,
         color: 'bg-pink-500',

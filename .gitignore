@@ -77,3 +77,68 @@ Thumbs.db
 stripe-cli.zip
 admin/node_modules/
 
+# ------------------------
+# Security - Documentation
+# ------------------------
+*.md
+!README.md
+README/
+ADMIN_KEY_README.md
+DONATION_AMOUNT_FIX.md
+HIGH_PRIORITY_TODO.md
+HOSTINGER_SMTP_SETUP.md
+INTEGRATION_COMPLETE.md
+LOCAL_EMAIL_TESTING.md
+NEWSLETTER_*.md
+RENDER_ENVIRONMENT_SETUP.md
+SENDGRID_SETUP.md
+SESSION_SUMMARY.md
+STRIPE_*.md
+URL_MASKING_IMPLEMENTATION.md
+
+# ------------------------
+# Security - Test Scripts
+# ------------------------
+test-*.js
+simple-test.js
+simple-webhook-test.js
+server/tests/
+server/test-*.js
+**/test-*.js
+add-*.js
+check-*.js
+fix-*.js
+diverse-animals-data.js
+
+# ------------------------
+# Security - Sensitive Files
+# ------------------------
+server/admin-key.json
+debug-*.html
+*.txt
+!package.json
+paths-to-remove.txt
+tracked_files.txt
+server/app.js.txt*
+
+# ------------------------
+# Logs & Database Files  
+# ------------------------
+*.log
+*.err
+server/logs/
+server/data.sqlite
+server/*.log
+
+# ------------------------
+# Stripe CLI (large binary)
+# ------------------------
+stripe-cli/
+*.exe
+
+# ------------------------
+# Simulation/Debug Utils
+# ------------------------
+server/utils/simulate-*.js
+server/utils/run-test-*.js
+scripts/

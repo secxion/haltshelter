@@ -24,6 +24,14 @@ const connectDB = require('./db');
 // Import models to register them with Mongoose (used by route handlers)
 require('./models');
 
+// Import admin security middleware
+const { 
+  adminLoginLimiter, 
+  adminApiLimiter, 
+  checkAdminOrigin, 
+  logAdminAction 
+} = require('./middleware/adminSecurity');
+
 // Initialize Express app
 const app = express();
 
@@ -75,14 +83,33 @@ app.use(helmet({
 
 // CORS configuration - Simplified for single-repo same-origin deployment
 if (NODE_ENV === 'production' && fs.existsSync(FRONTEND_BUILD_PATH)) {
-  // In single-repo production, all traffic is assumed same-origin. 
-  // We only need CORS for explicit API/localhost testing or external APIs.
-  // By default, Express allows same-origin requests.
-  // We only enable CORS for specific API routes or development.
-  console.log('🌐 CORS set to allow self (Production/Same-Origin)');
+  // In production, restrict CORS to known origins only
+  const productionWhitelist = [
+    'https://haltshelter.onrender.com',
+    'https://haltshelter.org',
+    'https://www.haltshelter.org',
+    'https://halt-admin.onrender.com',  // Admin panel production URL
+    'https://admin.haltshelter.org',    // Custom admin domain if set up
+    process.env.FRONTEND_URL,
+    process.env.ADMIN_PANEL_URL
+  ].filter(Boolean);
+  
+  console.log('🌐 CORS set to production whitelist:', productionWhitelist);
   app.use(cors({
-    origin: '*', // Allow all origins for the API in development
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl) but log them
+      if (!origin) {
+        console.log('[CORS] Request without origin - allowing');
+        return callback(null, true);
+      }
+      if (productionWhitelist.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.error(`[CORS] BLOCKED origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'), false);
+      }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
   }));
 } else {
@@ -247,8 +274,9 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
 // DIRECT admin auth routes (kept for simplicity, but consider moving to './routes/auth' with proper middleware)
 console.log('📦 Adding direct admin auth routes...');
 
-app.post('/api/admin-auth/admin-login', (req, res) => {
-  console.log('🔑 DIRECT Admin login hit!', req.body);
+// Apply rate limiting and origin check to admin login
+app.post('/api/admin-auth/admin-login', adminLoginLimiter, checkAdminOrigin, (req, res) => {
+  console.log('🔑 DIRECT Admin login hit!', { ip: req.ip, origin: req.get('origin') });
   const { adminKey } = req.body;
   
   try {
@@ -305,18 +333,20 @@ app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/volunteers', require('./routes/volunteers'));
 app.use('/api/org-settings', require('./routes/org-settings'));
 app.use('/api/notification-settings', require('./routes/notification-settings'));
-app.use('/api/admin-key', require('./routes/admin-key'));
-app.use('/api/users', require('./routes/users'));
+app.use('/api/admin-key', checkAdminOrigin, adminLoginLimiter, require('./routes/admin-key'));
+app.use('/api/users', checkAdminOrigin, adminApiLimiter, require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/funding-needs', require('./routes/funding-needs'));
 
 // Test email endpoint (for diagnosing SMTP issues in production)
-app.use('/api/test', require('./routes/test-email'));
+// app.use('/api/test', require('./routes/test-email')); // Disabled for security
 
-// Admin routes
-app.use('/api/admin/animals', require('./routes/admin-animals'));
-app.use('/api/admin/adoption-inquiries', require('./routes/admin-adoption-inquiries'));
-app.use('/api/admin/stats', require('./routes/admin-stats'));
+// Admin routes - Protected with additional security
+app.use('/api/admin/animals', checkAdminOrigin, adminApiLimiter, logAdminAction('admin-animals'), require('./routes/admin-animals'));
+app.use('/api/admin/adoption-inquiries', checkAdminOrigin, adminApiLimiter, logAdminAction('admin-adoption'), require('./routes/admin-adoption-inquiries'));
+app.use('/api/admin/stats', checkAdminOrigin, adminApiLimiter, logAdminAction('admin-stats'), require('./routes/admin-stats'));
+app.use('/api/admin', checkAdminOrigin, adminApiLimiter, logAdminAction('admin-funding'), require('./routes/admin-funding'));
 
 
 // --- Single-Repo Frontend Serving Logic ---

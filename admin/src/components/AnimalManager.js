@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 
 const AnimalManager = () => {
   const [animals, setAnimals] = useState([]);
@@ -39,7 +40,7 @@ const AnimalManager = () => {
 
   const fetchAnimals = React.useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/animals', {
+      const response = await fetch(`${API_BASE_URL}/admin/animals`, {
         headers: getAuthHeaders()
       });
       if (response.ok) {
@@ -61,8 +62,8 @@ const AnimalManager = () => {
     e.preventDefault();
     try {
       const url = editingAnimal 
-        ? `http://localhost:5000/api/admin/animals/${editingAnimal._id}`
-        : 'http://localhost:5000/api/admin/animals';
+        ? `${API_BASE_URL}/admin/animals/${editingAnimal._id}`
+        : `${API_BASE_URL}/admin/animals`;
       
       const method = editingAnimal ? 'PUT' : 'POST';
       
@@ -120,7 +121,7 @@ const AnimalManager = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this animal?')) {
       try {
-        const response = await fetch(`http://localhost:5000/api/admin/animals/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/admin/animals/${id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -174,7 +175,7 @@ const AnimalManager = () => {
         const formData = new FormData();
         formData.append('image', file);
 
-        const response = await fetch('http://localhost:5000/api/upload/image', {
+        const response = await fetch(`${API_BASE_URL}/upload/image`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -332,7 +333,7 @@ const AnimalManager = () => {
                 let success = 0, fail = 0;
                 for (const animal of newAnimals) {
                   try {
-                    const res = await fetch('http://localhost:5000/api/admin/animals', {
+                    const res = await fetch(`${API_BASE_URL}/admin/animals`, {
                       method: 'POST',
                       headers: getAuthHeaders(),
                       body: JSON.stringify(animal)

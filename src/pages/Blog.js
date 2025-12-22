@@ -9,6 +9,10 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
+import { getPageData } from '../utils/navigationUtils';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const SERVER_BASE_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
 
 export default function Blog() {
   const [blogs, setBlogs] = useState([]);
@@ -38,6 +42,19 @@ export default function Blog() {
   };
 
   useEffect(() => {
+    // Check if category was passed via navigationUtils
+    const pageData = getPageData('/blog');
+    if (pageData && pageData.category) {
+      setSelectedCategory(pageData.category);
+    }
+    
+    // Also check URL params for backwards compatibility
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlCategory = urlParams.get('category');
+    if (urlCategory) {
+      setSelectedCategory(urlCategory);
+    }
+    
     fetchBlogs();
     fetchFeaturedBlogs();
     fetchCategories();
@@ -55,7 +72,7 @@ export default function Blog() {
       if (selectedCategory) params.append('category', selectedCategory);
       if (searchTerm) params.append('search', searchTerm);
 
-      const response = await fetch(`http://localhost:5000/api/blog?${params}`);
+      const response = await fetch(`${API_BASE_URL}/blog?${params}`);
       const data = await response.json();
 
       if (data.success) {
@@ -75,7 +92,7 @@ export default function Blog() {
 
   const fetchFeaturedBlogs = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/blog/featured');
+      const response = await fetch(`${API_BASE_URL}/blog/featured`);
       const data = await response.json();
 
       if (data.success) {
@@ -88,7 +105,7 @@ export default function Blog() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/blog/categories');
+      const response = await fetch(`${API_BASE_URL}/blog/categories`);
       const data = await response.json();
 
       if (data.success) {
@@ -129,7 +146,7 @@ export default function Blog() {
       {blog.featuredImage?.url && (
         <div className={`relative ${featured ? 'h-64' : 'h-48'} overflow-hidden`}>
           <img
-            src={`http://localhost:5000${blog.featuredImage.url}`}
+            src={`${SERVER_BASE_URL}${blog.featuredImage.url}`}
             alt={blog.featuredImage.alt || blog.title}
             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           />

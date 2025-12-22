@@ -10,5 +10,6 @@ module.exports = {
   Sponsor: require('./Sponsor'),
   OrganizationSettings: require('./OrganizationSettings'),
   NotificationSettings: require('./NotificationSettings'),
-  Stats: require('./Stats')
+  Stats: require('./Stats'),
+  FundingNeed: require('./FundingNeed')
 };

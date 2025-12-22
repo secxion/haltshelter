@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { HeartIcon, UsersIcon, HomeIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { FaEnvelope } from 'react-icons/fa';
 import { apiService, handleApiError } from '../services/api';
+import { navigateTo } from '../utils/navigationUtils';
+import NewsletterModal from '../components/Newsletter/NewsletterModal';
 
       <div className="fixed bottom-6 right-6 z-50">
         <Link
@@ -16,18 +18,37 @@ import { apiService, handleApiError } from '../services/api';
 
 
 const Home = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [newsletterModalOpen, setNewsletterModalOpen] = useState(false);
   const [featuredStories, setFeaturedStories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterGdprConsent, setNewsletterGdprConsent] = useState(false);
   const [newsletterStatus, setNewsletterStatus] = useState('');
+  const [newsletterError, setNewsletterError] = useState('');
 
   const [stats, setStats] = useState([
     { label: 'Animals Rescued', value: 0, icon: HeartIcon },
-    { label: 'Adoptions This Month', value: 0, icon: HomeIcon },
+    { label: 'Adoptions This Year', value: 0, icon: HomeIcon },
     { label: 'Active Volunteers', value: 0, icon: UsersIcon },
     { label: 'Lives Transformed', value: 0, icon: SparklesIcon },
   ]);
+
+  // Handle newsletter modal from query parameter
+  useEffect(() => {
+    const newsletter = searchParams.get('newsletter');
+    if (newsletter === 'true') {
+      setNewsletterModalOpen(true);
+      // Remove query parameter
+      setSearchParams({});
+    } else if (newsletter === 'confirmed') {
+      // Show confirmation message
+      setNewsletterModalOpen(false);
+      // You could show a toast notification here
+      console.log('✅ Newsletter subscription confirmed!');
+    }
+  }, [searchParams, setSearchParams]);
 
 
   useEffect(() => {
@@ -50,7 +71,7 @@ const Home = () => {
         // Use server-provided values or fallback to initial values
         setStats([
           { label: 'Animals Rescued', value: s.animalsRescued ?? 0, icon: HeartIcon },
-          { label: 'Adoptions This Month', value: s.adoptionsThisMonth ?? 0, icon: HomeIcon },
+          { label: 'Adoptions This Year', value: s.adoptionsThisMonth ?? 0, icon: HomeIcon },
           { label: 'Active Volunteers', value: s.activeVolunteers ?? 0, icon: UsersIcon },
           { label: 'Lives Transformed', value: s.livesTransformed ?? 0, icon: SparklesIcon },
         ]);
@@ -116,18 +137,39 @@ const Home = () => {
   // Handle newsletter subscription
   const handleNewsletterSubmit = async (e) => {
     e.preventDefault();
-    if (!newsletterEmail) return;
+    setNewsletterError('');
+    
+    if (!newsletterEmail) {
+      setNewsletterError('Email is required');
+      return;
+    }
+    
+    if (!newsletterGdprConsent) {
+      setNewsletterError('Please accept our privacy policy to subscribe');
+      return;
+    }
 
     try {
       setNewsletterStatus('loading');
-      await apiService.newsletter.subscribe(newsletterEmail);
+      await apiService.newsletter.subscribe(newsletterEmail, {
+        gdprConsent: true,
+        preferences: {
+          generalNews: true,
+          animalUpdates: true,
+          events: true,
+          fundraising: true
+        }
+      });
       setNewsletterStatus('success');
       setNewsletterEmail('');
-      setTimeout(() => setNewsletterStatus(''), 3000);
+      setNewsletterGdprConsent(false);
+      setTimeout(() => setNewsletterStatus(''), 5000);
     } catch (err) {
       console.error('Newsletter subscription error:', err);
+      const errorMsg = err.response?.data?.error || 'Failed to subscribe. Please try again.';
       setNewsletterStatus('error');
-      setTimeout(() => setNewsletterStatus(''), 3000);
+      setNewsletterError(errorMsg);
+      setTimeout(() => setNewsletterStatus(''), 5000);
     }
   };
 
@@ -302,10 +344,10 @@ const Home = () => {
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">📚 Resources for Pet Lovers</h2>
           <p className="text-lg text-gray-700 mb-8">Learn more about animal care, adoption, and advocacy. Explore our guides and tips to help you and your pet thrive.</p>
           <div className="flex flex-wrap justify-center gap-6 text-lg">
-            <Link to="/blog?category=pet-care" className="bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-6 rounded-lg border border-blue-200 transition-colors">Pet Care Guides</Link>
-            <Link to="/blog?category=adoption-tips" className="bg-green-50 hover:bg-green-100 text-green-800 font-semibold py-3 px-6 rounded-lg border border-green-200 transition-colors">Adoption Tips</Link>
-            <Link to="/blog?category=animal-health" className="bg-purple-50 hover:bg-purple-100 text-purple-800 font-semibold py-3 px-6 rounded-lg border border-purple-200 transition-colors">Animal Health</Link>
-            <Link to="/blog?category=community-outreach" className="bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-semibold py-3 px-6 rounded-lg border border-yellow-200 transition-colors">Community Outreach</Link>
+            <a href="#" onClick={(e) => { e.preventDefault(); navigateTo('/blog', { category: 'pet-care' }); }} className="bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-6 rounded-lg border border-blue-200 transition-colors cursor-pointer">Pet Care Guides</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); navigateTo('/blog', { category: 'adoption-tips' }); }} className="bg-green-50 hover:bg-green-100 text-green-800 font-semibold py-3 px-6 rounded-lg border border-green-200 transition-colors cursor-pointer">Adoption Tips</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); navigateTo('/blog', { category: 'animal-health' }); }} className="bg-purple-50 hover:bg-purple-100 text-purple-800 font-semibold py-3 px-6 rounded-lg border border-purple-200 transition-colors cursor-pointer">Animal Health</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); navigateTo('/blog', { category: 'community-outreach' }); }} className="bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-semibold py-3 px-6 rounded-lg border border-yellow-200 transition-colors cursor-pointer">Community Outreach</a>
             <Link to="/blog" className="bg-gray-50 hover:bg-gray-100 text-gray-800 font-semibold py-3 px-6 rounded-lg border border-gray-200 transition-colors">All Articles</Link>
           </div>
         </div>
@@ -375,53 +417,83 @@ const Home = () => {
       </section>
 
       {/* Newsletter Signup */}
-  <section className="bg-red-600 text-white py-12 sm:py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 flex items-center justify-center gap-2">
-            <FaEnvelope className="inline-block mb-1" /> Stay Connected with Our Mission
-          </h2>
-          <p className="text-base sm:text-lg md:text-xl mb-8 text-red-100">
-            Get rescue stories, adoption updates, and ways to help delivered to your inbox
-          </p>
+      <section className="bg-red-600 text-white py-12 sm:py-16">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 flex items-center justify-center gap-2">
+              <FaEnvelope className="inline-block" /> Stay Connected
+            </h2>
+            <p className="text-base sm:text-lg md:text-xl text-red-100">
+              Get rescue updates, adoption news, and inspiration delivered to your inbox
+            </p>
+          </div>
+
           {/* Newsletter Status Messages */}
           {newsletterStatus === 'success' && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-6 max-w-md mx-auto">
-              🎉 Thank you for subscribing! You'll hear from us soon.
+            <div className="bg-green-500 border border-green-600 text-white px-4 py-3 rounded-lg mb-6 animate-slideDown">
+              ✅ Check your email to confirm your subscription!
             </div>
           )}
           {newsletterStatus === 'error' && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 max-w-md mx-auto">
-              ❌ Something went wrong. Please try again.
+            <div className="bg-red-700 border border-red-800 text-white px-4 py-3 rounded-lg mb-6 animate-slideDown">
+              ❌ {newsletterError || 'Something went wrong. Please try again.'}
             </div>
           )}
-          <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-            <div className="relative w-full flex-1">
-              <FaEnvelope className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input 
-                type="email" 
-                placeholder="Enter your email"
-                value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
-                className="w-full pl-10 px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                required
+
+          <form onSubmit={handleNewsletterSubmit} className="space-y-4">
+            {/* Email Input */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <FaEnvelope className="absolute left-3 top-3 text-gray-300 mt-1" />
+                <input 
+                  type="email" 
+                  placeholder="Enter your email"
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  className="w-full pl-10 px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 font-medium"
+                  required
+                  disabled={newsletterStatus === 'loading'}
+                />
+              </div>
+              <button 
+                type="submit"
                 disabled={newsletterStatus === 'loading'}
-              />
+                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {newsletterStatus === 'loading' ? 'Subscribing...' : 'Subscribe'}
+              </button>
             </div>
-            <button 
-              type="submit"
-              disabled={newsletterStatus === 'loading'}
-              className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {newsletterStatus === 'loading' ? 'Subscribing...' : 'Subscribe'}
-            </button>
+
+            {/* GDPR Consent Checkbox */}
+            <div className="bg-red-500 bg-opacity-50 p-4 rounded-lg">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={newsletterGdprConsent}
+                  onChange={(e) => setNewsletterGdprConsent(e.target.checked)}
+                  className="mt-1 w-5 h-5 accent-yellow-400 rounded focus:ring-2 focus:ring-yellow-400"
+                />
+                <span className="text-sm text-red-100">
+                  I agree to receive updates and newsletters. I can unsubscribe at any time. 
+                  <Link to="/privacy" className="text-yellow-300 hover:text-yellow-200 underline">Privacy Policy</Link>
+                </span>
+              </label>
+            </div>
+
+            <p className="text-xs text-red-100 text-center">
+              We'll send a confirmation link to your email. Unsubscribe anytime.
+            </p>
           </form>
-          <p className="text-sm text-red-200 mt-4">
-            We respect your privacy. Unsubscribe at any time.
-          </p>
         </div>
       </section>
 
       {/* Social Proof removed per request */}
+
+      {/* Newsletter Modal */}
+      <NewsletterModal 
+        isOpen={newsletterModalOpen}
+        onClose={() => setNewsletterModalOpen(false)}
+      />
     </div>
   );
 }

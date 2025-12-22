@@ -178,7 +178,7 @@ const PaymentSuccess = ({
           <a href="mailto:donations@haltshelter.org" className="text-red-600 hover:text-red-700">
             donations@haltshelter.org
           </a>{' '}
-          or call (555) 123-4567
+          or call +1 (805) 452-9111
         </p>
       </div>
     </div>

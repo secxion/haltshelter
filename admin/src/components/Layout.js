@@ -9,7 +9,9 @@ import {
   ArrowRightOnRectangleIcon,
   NewspaperIcon,
   HeartIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  EnvelopeOpenIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 
 const Layout = ({ children }) => {
@@ -23,8 +25,11 @@ const Layout = ({ children }) => {
     { name: 'Animals', href: '/animals', icon: PhotoIcon, current: location.pathname === '/animals' },
     { name: 'Adoption Inquiries', href: '/adoption-inquiries', icon: HeartIcon, current: location.pathname === '/adoption-inquiries' },
     { name: 'Volunteers', href: '/volunteers', icon: UsersIcon, current: location.pathname === '/volunteers' },
+    { name: 'Funding & Impact', href: '/funding-needs', icon: CurrencyDollarIcon, current: location.pathname === '/funding-needs' },
     { name: 'User Management', href: '/users', icon: UsersIcon, current: location.pathname === '/users' },
     { name: 'Stats', href: '/stats', icon: ChartBarIcon, current: location.pathname === '/stats' },
+    { name: 'Subscribers', href: '/newsletter', icon: EnvelopeOpenIcon, current: location.pathname === '/newsletter' },
+    { name: 'Compose Newsletter', href: '/newsletter/compose', icon: EnvelopeOpenIcon, current: location.pathname === '/newsletter/compose' },
   ];
 
   return (

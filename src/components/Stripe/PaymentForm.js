@@ -78,13 +78,15 @@ const PaymentForm = ({
       );
 
       // Process payment
+      // NOTE: We intentionally do NOT pass email to billing_details to prevent
+      // Stripe from sending duplicate automatic receipts. Our webhook handles emails.
       const result = await stripeService.processPayment(
         stripe,
         elements,
         client_secret,
         {
           name: donorInfo.anonymous ? 'Anonymous Donor' : donorInfo.name,
-          email: donorInfo.email,
+          // email is NOT passed here to prevent Stripe automatic receipts
           phone: donorInfo.phone,
         }
       );
@@ -93,11 +95,13 @@ const PaymentForm = ({
         setError(result.error.message);
       } else {
         // Payment succeeded
+        console.log('[PAYMENT-FORM] Payment result:', result);
+        console.log('[PAYMENT-FORM] PaymentIntent amount:', result.paymentIntent?.amount);
         if (onSuccess) {
           onSuccess({
             paymentIntent: result.paymentIntent,
             donorInfo,
-            amount,
+            amount: result.paymentIntent.amount, // Use amount in cents from Stripe PaymentIntent
             donationType,
             isEmergency,
           });

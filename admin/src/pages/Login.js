@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../App';
+import { API_BASE_URL } from '../config';
 
 const Login = () => {
   const [adminKey, setAdminKey] = useState('');
@@ -19,7 +20,7 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/admin-auth/admin-login', {
+      const response = await fetch(`${API_BASE_URL}/admin-auth/admin-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

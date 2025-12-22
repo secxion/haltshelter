@@ -109,7 +109,7 @@ const StatsManager = () => {
             />
           </Form.Item>
 
-          <Form.Item label="Adoptions This Month">
+          <Form.Item label="Adoptions This Year">
             <input
               type="number"
               value={stats.adoptionsThisMonth}
@@ -144,7 +144,7 @@ const StatsManager = () => {
           <h4 className="font-semibold text-blue-800 mb-2">About These Statistics</h4>
           <ul className="list-disc list-inside text-blue-700 space-y-1 text-sm">
             <li>Animals Rescued: Total number of animals taken into care</li>
-            <li>Adoptions This Month: Successful adoptions in the current month</li>
+            <li>Adoptions This Year: Successful adoptions in the current year</li>
             <li>Active Volunteers: Current number of active volunteers</li>
             <li>Lives Transformed: Total impact (animals + families helped)</li>
           </ul>

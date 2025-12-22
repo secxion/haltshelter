@@ -6,6 +6,9 @@ import {
   EyeIcon,
   PhotoIcon
 } from '@heroicons/react/24/outline';
+import { API_BASE_URL, getUploadUrl } from '../config';
+
+const MAIN_SITE_URL = process.env.REACT_APP_MAIN_SITE_URL || 'http://localhost:3001';
 
 const StoriesManager = () => {
   // Helper function to resolve image URLs for different sources
@@ -19,12 +22,12 @@ const StoriesManager = () => {
     
     // If it's a relative path (public images), convert to main website URL
     if (imageUrl.startsWith('/images/')) {
-      return `http://localhost:3001${imageUrl}`;
+      return `${MAIN_SITE_URL}${imageUrl}`;
     }
     
     // If it's just a filename or other format, assume it's from uploads
     if (!imageUrl.startsWith('/')) {
-      return `http://localhost:5000/uploads/images/${imageUrl}`;
+      return getUploadUrl(imageUrl);
     }
     
     return imageUrl;
@@ -58,7 +61,7 @@ const StoriesManager = () => {
   // Fetch stories
   const fetchStories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/stories');
+      const response = await fetch(`${API_BASE_URL}/stories`);
       const data = await response.json();
       console.log('Admin Panel - API Response:', data);
       console.log('Admin Panel - Stories count:', data.data ? data.data.length : 0);
@@ -99,7 +102,7 @@ const StoriesManager = () => {
     formData.append('image', file);
     
     const token = localStorage.getItem('adminToken');
-    const response = await fetch('http://localhost:5000/api/upload/image', {
+    const response = await fetch(`${API_BASE_URL}/upload/image`, {
       method: 'POST',
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',
@@ -143,8 +146,8 @@ const StoriesManager = () => {
       console.log('Sending story data:', finalFormData);
       
       const url = editingStory 
-        ? `http://localhost:5000/api/stories/${editingStory._id}`
-        : 'http://localhost:5000/api/stories';
+        ? `${API_BASE_URL}/stories/${editingStory._id}`
+        : `${API_BASE_URL}/stories`;
       
       const method = editingStory ? 'PUT' : 'POST';
       
@@ -182,7 +185,7 @@ const StoriesManager = () => {
         // Get admin token for authentication
         const token = localStorage.getItem('adminToken');
         
-        const response = await fetch(`http://localhost:5000/api/stories/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': token ? `Bearer ${token}` : '',

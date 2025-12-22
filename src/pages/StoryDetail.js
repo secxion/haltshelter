@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon, TagIcon, HeartIcon, ShareIcon } from '@heroicons/react/24/outline';
 import { apiService, handleApiError } from '../services/api';
+import { buildAbsoluteUrl } from '../utils/navigationUtils';
 
 export default function StoryDetail() {
   const { id } = useParams();
@@ -135,23 +136,24 @@ After 8 months at HALT, Bella found her forever family. The Johnson family fell 
   };
 
   const handleShare = () => {
+    const shareUrl = buildAbsoluteUrl(`/stories/${story._id}`);
     if (navigator.share) {
       navigator.share({
         title: story.title,
         text: story.excerpt || 'Check out this inspiring rescue story from HALT Animal Shelter',
-        url: window.location.href,
+        url: shareUrl,
       });
     } else {
       // Fallback to copying URL to clipboard
-      navigator.clipboard.writeText(window.location.href);
+      navigator.clipboard.writeText(shareUrl);
       alert('Story URL copied to clipboard!');
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
             <div className="h-64 bg-gray-200 rounded-lg mb-8"></div>
@@ -170,8 +172,8 @@ After 8 months at HALT, Bella found her forever family. The Johnson family fell 
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <Link
             to="/stories"
             className="inline-flex items-center text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-8 group"
@@ -197,8 +199,8 @@ After 8 months at HALT, Bella found her forever family. The Johnson family fell 
 
   if (!story) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <div className="text-gray-600 text-lg">Story not found</div>
           </div>
@@ -208,8 +210,8 @@ After 8 months at HALT, Bella found her forever family. The Johnson family fell 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-blue-50 via-white to-green-50">
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Back Navigation */}
         <Link
           to="/stories"
@@ -321,7 +323,7 @@ After 8 months at HALT, Bella found her forever family. The Johnson family fell 
               {relatedStories.map((relatedStory) => (
                 <Link
                   key={relatedStory._id}
-                  to={`/stories/${relatedStory._id}`}
+                  to={`/stories/${relatedStory.slug || relatedStory._id}`}
                   className="group bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                 >
                   <div className="aspect-video bg-gray-200 overflow-hidden">

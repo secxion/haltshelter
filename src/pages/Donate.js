@@ -1,26 +1,75 @@
 import React, { useState, useEffect } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { HeartIcon, ShieldCheckIcon, CreditCardIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { stripeService } from '../services/stripe';
+import { apiService } from '../services/api';
+import { navigateTo, getPageData } from '../utils/navigationUtils';
 import PaymentForm from '../components/Stripe/PaymentForm';
 
 const Donate = () => {
+  const navigate = useNavigate();
   const [selectedAmount, setSelectedAmount] = useState('');
   const [customAmount, setCustomAmount] = useState('');
   const [isEmergency, setIsEmergency] = useState(false);
   const [donationType, setDonationType] = useState('one-time'); // 'one-time' or 'monthly'
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  
+  // Real data from backend
+  const [fundingNeeds, setFundingNeeds] = useState([]);
+  const [impactStats, setImpactStats] = useState({
+    rescuedThisMonth: 0,
+    adoptionsThisMonth: 0,
+    medicalTreatments: 0,
+    spayNeuterCount: 0
+  });
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Fetch funding needs and impact stats
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [fundingRes, impactRes] = await Promise.all([
+          apiService.fundingNeeds.getAll(),
+          apiService.stats.getImpact()
+        ]);
+        
+        // Store all funding needs (emergency ones first)
+        const needs = fundingRes.data?.fundingNeeds || [];
+        setFundingNeeds(needs.sort((a, b) => {
+          if (a.type === 'emergency' && b.type !== 'emergency') return -1;
+          if (a.type !== 'emergency' && b.type === 'emergency') return 1;
+          return (b.priority || 0) - (a.priority || 0);
+        }));
+        
+        if (impactRes.data?.impact) {
+          setImpactStats(impactRes.data.impact);
+        }
+      } catch (error) {
+        console.error('Error fetching donate page data:', error);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
 
   useEffect(() => {
-    // Check if emergency donation was requested
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('emergency') === 'true') {
-      setIsEmergency(true);
-    }
-    // If recurrence=monthly present, default to monthly donation type
-    if (urlParams.get('recurrence') === 'monthly') {
-      setDonationType('monthly');
+    // Check if data was passed via navigationUtils
+    const pageData = getPageData('/donate');
+    if (pageData) {
+      if (pageData.emergency) setIsEmergency(true);
+      if (pageData.recurrence === 'monthly') setDonationType('monthly');
+    } else {
+      // Fallback to URL parameters for backwards compatibility
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('emergency') === 'true') {
+        setIsEmergency(true);
+      }
+      if (urlParams.get('recurrence') === 'monthly') {
+        setDonationType('monthly');
+      }
     }
   }, []);
 
@@ -61,12 +110,48 @@ const Donate = () => {
     const amount = getFinalAmount();
     if (amount && amount > 0) {
       setShowPaymentForm(true);
+      // Scroll to top when showing payment form
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handlePaymentSuccess = (donationData) => {
-    // Redirect to success page with donation details
-    window.location.href = `/donate/success?amount=${donationData.amount}&type=${donationType}&emergency=${isEmergency}`;
+    // Store donation details and redirect with clean URL
+    // IMPORTANT: Store amount in CENTS to preserve accuracy
+    // DonateSuccess.js will convert to dollars for display
+    
+    console.log('[DONATE] Raw donationData received:', donationData);
+    
+    const amountInCents = donationData.amount 
+      ? donationData.amount
+      : ((parseFloat(selectedAmount) || parseFloat(customAmount) || 0) * 100);
+    
+    console.log('[DONATE] Payment Success - Amount data:', {
+      received: donationData.amount,
+      storingInCents: amountInCents,
+      willDisplayAsDollars: amountInCents / 100,
+      selected: selectedAmount,
+      custom: customAmount
+    });
+    
+    const donationDetails = {
+      amount: amountInCents.toString(), // Store in cents as string
+      type: donationType,
+      emergency: isEmergency
+    };
+    
+    console.log('[DONATE] Storing donation details:', donationDetails);
+    
+    // Store in sessionStorage
+    const key = '_donate_success_data';
+    sessionStorage.setItem(key, JSON.stringify(donationDetails));
+    
+    // Verify it was stored
+    const verify = sessionStorage.getItem(key);
+    console.log('[DONATE] Verification - stored in sessionStorage:', verify);
+    
+    // Use React Router navigate instead of window.location.href to preserve sessionStorage
+    navigate('/donate/success');
   };
 
   const handleBackToForm = () => {
@@ -311,59 +396,76 @@ const Donate = () => {
 
             {/* Current Needs */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">
-                {isEmergency ? 'Current Emergency Cases' : 'Current Funding Needs'}
-              </h3>
-              {isEmergency ? (
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Current Funding Needs</h3>
+              {dataLoading ? (
+                <div className="text-gray-500 text-center py-4">Loading...</div>
+              ) : fundingNeeds.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="border-l-4 border-red-500 pl-4">
-                    <h4 className="font-semibold text-gray-900">Luna - Emergency Surgery</h4>
-                    <p className="text-gray-600">Hit by car, needs immediate orthopedic surgery</p>
-                    <div className="text-red-600 font-semibold">$2,800 needed</div>
-                  </div>
-                  <div className="border-l-4 border-red-500 pl-4">
-                    <h4 className="font-semibold text-gray-900">Kitten Pneumonia Outbreak</h4>
-                    <p className="text-gray-600">8 kittens need intensive respiratory care</p>
-                    <div className="text-red-600 font-semibold">$1,200 needed</div>
-                  </div>
+                  {fundingNeeds.map((need, index) => {
+                    const isEmergencyNeed = need.type === 'emergency';
+                    const borderColor = isEmergencyNeed ? 'border-red-500' : (index % 2 === 0 ? 'border-blue-500' : 'border-green-500');
+                    const textColor = isEmergencyNeed ? 'text-red-600' : (index % 2 === 0 ? 'text-blue-600' : 'text-green-600');
+                    const progress = need.goalAmount > 0 ? Math.min(100, (need.currentAmount / need.goalAmount) * 100) : 0;
+                    
+                    return (
+                      <div key={need._id} className={`border-l-4 ${borderColor} pl-4`}>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-gray-900">{need.title}</h4>
+                          {isEmergencyNeed && (
+                            <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full">🚨 Urgent</span>
+                          )}
+                        </div>
+                        <p className="text-gray-600 text-sm mt-1">{need.description}</p>
+                        <div className="mt-2">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className={`${textColor} font-semibold`}>
+                              ${need.currentAmount?.toLocaleString() || 0} raised
+                            </span>
+                            <span className="text-gray-500">
+                              of ${need.goalAmount?.toLocaleString() || 0} goal
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full ${isEmergencyNeed ? 'bg-red-500' : 'bg-blue-500'}`}
+                              style={{ width: `${progress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="border-l-4 border-blue-500 pl-4">
-                    <h4 className="font-semibold text-gray-900">Winter Shelter Upgrades</h4>
-                    <p className="text-gray-600">Heating system and insulation improvements</p>
-                    <div className="text-blue-600 font-semibold">$15,000 goal</div>
-                  </div>
-                  <div className="border-l-4 border-green-500 pl-4">
-                    <h4 className="font-semibold text-gray-900">Spay/Neuter Program</h4>
-                    <p className="text-gray-600">Prevent overpopulation in the community</p>
-                    <div className="text-green-600 font-semibold">$8,500 goal</div>
-                  </div>
-                </div>
+                <p className="text-gray-500">No active funding needs at this time.</p>
               )}
             </div>
 
             {/* Recent Impact */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Recent Impact</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Animals rescued this month</span>
-                  <span className="font-bold text-gray-900">47</span>
+              {dataLoading ? (
+                <div className="text-gray-500 text-center py-4">Loading...</div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Animals rescued this month</span>
+                    <span className="font-bold text-gray-900">{impactStats.rescuedThisMonth}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Successful adoptions</span>
+                    <span className="font-bold text-gray-900">{impactStats.adoptionsThisMonth}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Medical treatments provided</span>
+                    <span className="font-bold text-gray-900">{impactStats.medicalTreatments}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Community pets spayed/neutered</span>
+                    <span className="font-bold text-gray-900">{impactStats.spayNeuterCount}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Successful adoptions</span>
-                  <span className="font-bold text-gray-900">38</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Medical treatments provided</span>
-                  <span className="font-bold text-gray-900">156</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Community pets spayed/neutered</span>
-                  <span className="font-bold text-gray-900">89</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Other Ways to Help */}
@@ -372,9 +474,6 @@ const Donate = () => {
               <div className="space-y-2">
                 <Link to="/volunteer" className="block text-blue-600 hover:text-blue-800 font-semibold">
                   → Volunteer your time
-                </Link>
-                <Link to="/monthly" className="block text-blue-600 hover:text-blue-800 font-semibold">
-                  → Join our monthly giving program
                 </Link>
                 <button className="block text-blue-600 hover:text-blue-800 font-semibold text-left">
                   → Corporate sponsorship opportunities

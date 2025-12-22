@@ -13,6 +13,7 @@ import {
   HeartIcon,
   AcademicCapIcon
 } from '@heroicons/react/24/outline';
+import { API_BASE_URL } from '../config';
 
 export default function VolunteerManager() {
   const [volunteers, setVolunteers] = useState([]);
@@ -101,7 +102,7 @@ export default function VolunteerManager() {
       setLoading(true);
       const adminToken = localStorage.getItem('adminToken');
       
-      const response = await fetch('http://localhost:5000/api/volunteers/applications', {
+      const response = await fetch(`${API_BASE_URL}/volunteers/applications`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`
         }
@@ -127,7 +128,7 @@ export default function VolunteerManager() {
     try {
       const adminToken = localStorage.getItem('adminToken');
       
-      const response = await fetch(`http://localhost:5000/api/volunteers/applications/${volunteerId}`, {
+      const response = await fetch(`${API_BASE_URL}/volunteers/applications/${volunteerId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -171,7 +172,7 @@ export default function VolunteerManager() {
     try {
       const adminToken = localStorage.getItem('adminToken');
       
-      const response = await fetch(`http://localhost:5000/api/volunteers/applications/${volunteerId}`, {
+      const response = await fetch(`${API_BASE_URL}/volunteers/applications/${volunteerId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${adminToken}`
@@ -568,7 +569,7 @@ export default function VolunteerManager() {
     const adminToken = localStorage.getItem('adminToken');
     for (const volunteer of newVolunteers) {
       try {
-        const res = await fetch('http://localhost:5000/api/volunteers/applications', {
+        const res = await fetch(`${API_BASE_URL}/volunteers/applications`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${adminToken}`,

@@ -12,6 +12,9 @@ import Layout from './components/Layout';
 import UserManagement from './pages/UserManagement';
 import Sponsors from './pages/Sponsors';
 import StatsManager from './components/StatsManager/StatsManager';
+import NewsletterSubscribers from './pages/NewsletterSubscribers';
+import NewsletterCompose from './pages/NewsletterCompose';
+import FundingNeedsManager from './components/FundingNeedsManager';
 
 // Simple auth context
 const AuthContext = React.createContext();
@@ -146,6 +149,27 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <StatsManager />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/newsletter" element={
+            <ProtectedRoute>
+              <Layout>
+                <NewsletterSubscribers />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/newsletter/compose" element={
+            <ProtectedRoute>
+              <Layout>
+                <NewsletterCompose />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/funding-needs" element={
+            <ProtectedRoute>
+              <Layout>
+                <FundingNeedsManager />
               </Layout>
             </ProtectedRoute>
           } />

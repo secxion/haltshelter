@@ -12,6 +12,7 @@ import {
   ClockIcon,
   ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
+import { API_BASE_URL, SERVER_BASE_URL } from '../config';
 
 const BlogManager = () => {
   const [blogs, setBlogs] = useState([]);
@@ -80,7 +81,7 @@ const BlogManager = () => {
         ...filters
       });
 
-      const response = await fetch(`http://localhost:5000/api/blog/admin/all?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/blog/admin/all?${params}`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
@@ -141,8 +142,8 @@ const BlogManager = () => {
       });
 
       const url = editingBlog 
-        ? `http://localhost:5000/api/blog/${editingBlog._id}`
-        : 'http://localhost:5000/api/blog';
+        ? `${API_BASE_URL}/blog/${editingBlog._id}`
+        : `${API_BASE_URL}/blog`;
       
       const method = editingBlog ? 'PUT' : 'POST';
 
@@ -180,7 +181,7 @@ const BlogManager = () => {
   const handleEdit = async (blog) => {
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5000/api/blog/admin/${blog._id}`, {
+      const response = await fetch(`${API_BASE_URL}/blog/admin/${blog._id}`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`
         }
@@ -219,7 +220,7 @@ const BlogManager = () => {
 
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5000/api/blog/${blogId}`, {
+      const response = await fetch(`${API_BASE_URL}/blog/${blogId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${adminToken}`
@@ -398,7 +399,7 @@ const BlogManager = () => {
                       {blog.featuredImage?.url ? (
                         <img
                           className="h-10 w-10 rounded-lg object-cover mr-3"
-                          src={`http://localhost:5000${blog.featuredImage.url}`}
+                          src={`${SERVER_BASE_URL}${blog.featuredImage.url}`}
                           alt={blog.featuredImage.alt}
                         />
                       ) : (

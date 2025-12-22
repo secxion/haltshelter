@@ -7,76 +7,69 @@ const newsletterSubscriberSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
-  name: {
-    type: String,
-    trim: true
-  },
-  preferences: {
-    generalNews: {
-      type: Boolean,
-      default: true
-    },
-    animalUpdates: {
-      type: Boolean,
-      default: true
-    },
-    events: {
-      type: Boolean,
-      default: true
-    },
-    fundraising: {
-      type: Boolean,
-      default: true
-    },
-    volunteer: {
-      type: Boolean,
-      default: false
-    }
-  },
+  firstName: { type: String, trim: true },
+  lastName: { type: String, trim: true },
+  
+  // Double Opt-In Status
   status: {
     type: String,
-    enum: ['active', 'unsubscribed', 'bounced', 'pending'],
-    default: 'active'
+    enum: ['pending', 'confirmed', 'unsubscribed', 'bounced'],
+    default: 'pending'
   },
+  confirmationToken: String,
+  confirmedAt: Date,
+  
+  // GDPR Compliance
+  gdprConsent: { type: Boolean, default: false },
+  consentVersion: { type: String, default: '1.0' },
+  consentDate: Date,
+  consentIp: String,
+  
+  // Preferences
+  preferences: {
+    generalNews: { type: Boolean, default: true },
+    animalUpdates: { type: Boolean, default: true },
+    events: { type: Boolean, default: true },
+    fundraising: { type: Boolean, default: true },
+    volunteerOpportunities: { type: Boolean, default: false }
+  },
+  
+  // Source Tracking
   source: {
     type: String,
     enum: ['website', 'donation-form', 'event', 'social-media', 'referral', 'import'],
     default: 'website'
   },
-  subscribedAt: {
-    type: Date,
-    default: Date.now
-  },
+  subscriptionSource: String,
+  
+  // Timestamps
+  subscribedAt: { type: Date, default: Date.now },
   unsubscribedAt: Date,
-  confirmationToken: String,
-  isConfirmed: {
-    type: Boolean,
-    default: false
-  },
-  confirmedAt: Date,
+  unsubscribeReason: String,
   lastEmailSent: Date,
-  emailsSent: {
-    type: Number,
-    default: 0
-  },
-  emailsOpened: {
-    type: Number,
-    default: 0
-  },
-  emailsClicked: {
-    type: Number,
-    default: 0
-  },
-  tags: [String], // e.g., ['donor', 'volunteer', 'adopter']
-  notes: String
+  
+  // Engagement Metrics
+  emailsSent: { type: Number, default: 0 },
+  emailsOpened: { type: Number, default: 0 },
+  emailsClicked: { type: Number, default: 0 },
+  bounceCount: { type: Number, default: 0 },
+  complaintCount: { type: Number, default: 0 },
+  
+  // Additional Data
+  tags: [String],
+  notes: String,
+  ipAddress: String,
+  userAgent: String
 }, {
   timestamps: true
 });
 
-// Index for performance
+// Indexes for performance
 newsletterSubscriberSchema.index({ status: 1, subscribedAt: -1 });
 newsletterSubscriberSchema.index({ confirmationToken: 1 });
+newsletterSubscriberSchema.index({ email: 1 });
+newsletterSubscriberSchema.index({ gdprConsent: 1, status: 1 });
 
 module.exports = mongoose.model('NewsletterSubscriber', newsletterSubscriberSchema);

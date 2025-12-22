@@ -45,6 +45,14 @@ export const apiService = {
   // Public Stats
   stats: {
     getDashboard: () => api.get('/stats/dashboard'),
+    getImpact: () => api.get('/stats/impact'),
+  },
+
+  // Funding Needs (public)
+  fundingNeeds: {
+    getAll: (type) => api.get('/funding-needs', { params: type ? { type } : {} }),
+    getEmergency: () => api.get('/funding-needs/emergency'),
+    getRegular: () => api.get('/funding-needs/regular'),
   },
 
   // Authentication
@@ -119,8 +127,12 @@ export const apiService = {
 
   // Newsletter
   newsletter: {
-    subscribe: (email) => api.post('/newsletter/subscribe', { email }),
-    unsubscribe: (email) => api.post('/newsletter/unsubscribe', { email }),
+    subscribe: (email, data = {}) => api.post('/newsletter/subscribe', { email, ...data }),
+    confirm: (token) => api.get(`/newsletter/confirm/${token}`),
+    unsubscribe: (email, reason) => api.post('/newsletter/unsubscribe', { email, reason }),
+    updatePreferences: (email, preferences) => api.post('/newsletter/preferences', { email, preferences }),
+    getSubscriber: (email) => api.get(`/newsletter/subscriber/${email}`),
+    getStats: () => api.get('/newsletter/stats'),
     getSubscribers: (params = {}) => api.get('/newsletter/subscribers', { params }),
   },
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL, SERVER_BASE_URL } from '../config';
 
 const AdoptionInquiryManager = () => {
   const [inquiries, setInquiries] = useState([]);
@@ -36,7 +37,7 @@ const AdoptionInquiryManager = () => {
       });
 
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5000/api/admin/adoption-inquiries?${queryParams}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/adoption-inquiries?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -62,7 +63,7 @@ const AdoptionInquiryManager = () => {
   const updateInquiryStatus = async (inquiryId, newStatus, adminNotes = '') => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5000/api/admin/adoption-inquiries/${inquiryId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/adoption-inquiries/${inquiryId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -96,7 +97,7 @@ const AdoptionInquiryManager = () => {
   const viewInquiryDetails = async (inquiryId) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5000/api/admin/adoption-inquiries/${inquiryId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/adoption-inquiries/${inquiryId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -178,7 +179,7 @@ const AdoptionInquiryManager = () => {
               <div className="flex items-start space-x-4">
                 {selectedInquiry.animal?.images?.[0] && (
                   <img
-                    src={selectedInquiry.animal.images[0].url || `http://localhost:5000/uploads/images/${selectedInquiry.animal.images[0]}`}
+                    src={selectedInquiry.animal.images[0].url || `${SERVER_BASE_URL}/uploads/images/${selectedInquiry.animal.images[0]}`}
                     alt={selectedInquiry.animal.images[0].altText || selectedInquiry.animal.name}
                     className="w-20 h-20 object-cover rounded-lg"
                     onError={(e) => {
@@ -407,7 +408,7 @@ const AdoptionInquiryManager = () => {
                 const token = localStorage.getItem('adminToken');
                 for (const inquiry of newInquiries) {
                   try {
-                    const res = await fetch('http://localhost:5000/api/admin/adoption-inquiries', {
+                    const res = await fetch(`${API_BASE_URL}/admin/adoption-inquiries`, {
                       method: 'POST',
                       headers: {
                         'Authorization': `Bearer ${token}`,
@@ -504,7 +505,7 @@ const AdoptionInquiryManager = () => {
                       <div className="flex items-center">
                         {inquiry.animal?.images?.[0] && (
                           <img
-                            src={inquiry.animal.images[0].url || `http://localhost:5000/uploads/images/${inquiry.animal.images[0]}`}
+                            src={inquiry.animal.images[0].url || `${SERVER_BASE_URL}/uploads/images/${inquiry.animal.images[0]}`}
                             alt={inquiry.animal.images[0].altText || inquiry.animal.name}
                             className="w-10 h-10 object-cover rounded-full mr-3"
                             onError={(e) => {

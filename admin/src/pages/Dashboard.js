@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import SystemStatus from '../components/SystemStatus';
 import SponsorsManager from '../components/SponsorsManager/SponsorsManager';
+import { API_BASE_URL } from '../config';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -32,25 +33,25 @@ const Dashboard = () => {
       
       // Fetch all counts in parallel using direct count endpoints
       const [storiesResponse, animalsResponse, volunteersResponse, donationsResponse] = await Promise.all([
-        fetch('http://localhost:5000/api/stories/count', {
+        fetch(`${API_BASE_URL}/stories/count`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
             'Content-Type': 'application/json'
           }
         }),
-        fetch('http://localhost:5000/api/animals/count', {
+        fetch(`${API_BASE_URL}/animals/count`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
             'Content-Type': 'application/json'
           }
         }),
-        fetch('http://localhost:5000/api/volunteers/count', {
+        fetch(`${API_BASE_URL}/volunteers/count`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
             'Content-Type': 'application/json'
           }
         }),
-        fetch('http://localhost:5000/api/donations/count', {
+        fetch(`${API_BASE_URL}/donations/count`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
             'Content-Type': 'application/json'
@@ -75,7 +76,7 @@ const Dashboard = () => {
       console.log('✅ Stats state updated successfully');
       
       // Fetch animal breakdown stats
-      const animalStatsResponse = await fetch('http://localhost:5000/api/admin/animals/stats/breakdown', {
+      const animalStatsResponse = await fetch(`${API_BASE_URL}/admin/animals/stats/breakdown`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
           'Content-Type': 'application/json'
@@ -89,7 +90,7 @@ const Dashboard = () => {
       }
 
       // Get recent stories for the activity section
-      const recentStoriesResponse = await fetch('http://localhost:5000/api/stories');
+      const recentStoriesResponse = await fetch(`${API_BASE_URL}/stories`);
       const recentStoriesData = await recentStoriesResponse.json();
       setRecentStories((recentStoriesData.data || []).slice(0, 3));
       

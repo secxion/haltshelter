@@ -3,6 +3,32 @@ import PetCompatibilityQuiz from '../components/PetCompatibilityQuiz';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
+// Lightweight count-up hook for animating stat changes
+function useCountUp(target, duration = 600) {
+  const [value, setValue] = useState(Number(target) || 0);
+  const prevRef = React.useRef(value);
+  useEffect(() => {
+    const startVal = Number(prevRef.current) || 0;
+    const endVal = Number(target) || 0;
+    if (startVal === endVal) return;
+    let raf;
+    const start = performance.now();
+    const step = (now) => {
+      const p = Math.min((now - start) / duration, 1);
+      const current = Math.round(startVal + (endVal - startVal) * p);
+      setValue(current);
+      if (p < 1) {
+        raf = requestAnimationFrame(step);
+      } else {
+        prevRef.current = endVal;
+      }
+    };
+    raf = requestAnimationFrame(step);
+    return () => raf && cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
+
 // Bold Urgent Needs/Alert Banner
 const UrgentAlertBanner = () => (
   <div className="bg-red-700 text-white text-center py-4 px-2 font-bold text-lg shadow-lg mb-6 animate-pulse" role="alert" aria-live="assertive">
@@ -54,13 +80,17 @@ const StickyActionButton = () => (
 
 const Animals = () => {
   const [animals, setAnimals] = useState([]);
-  const [adoptionsThisMonth, setAdoptionsThisMonth] = useState(null);
+  const [statusBreakdown, setStatusBreakdown] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedSpecies, setSelectedSpecies] = useState('All');
   const [selectedAnimal, setSelectedAnimal] = useState(null);
   const [viewingAnimal, setViewingAnimal] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showQuiz, setShowQuiz] = useState(false);
+  // Live stats state
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [statsJustUpdated, setStatsJustUpdated] = useState(false);
   // Quick filter state
   const [quickFilters, setQuickFilters] = useState({
     senior: false,
@@ -78,8 +108,22 @@ const Animals = () => {
 
   useEffect(() => {
     fetchAvailableAnimals();
-    fetchDashboardStats();
+    fetchAnimalStatsBreakdown();
+    
+    // Set up auto-refresh for live stats every 30 seconds
+    const statsRefreshInterval = setInterval(() => {
+      fetchAnimalStatsBreakdown(true); // true = background update
+      fetchAvailableAnimals();
+    }, 30000);
+
+    return () => clearInterval(statsRefreshInterval);
   }, []);
+
+  // Animated counters for live stats
+  const availableCount = useCountUp(statusBreakdown?.['Available'] ?? 0);
+  const fosterCount = useCountUp(statusBreakdown?.['Foster'] ?? 0);
+  const medicalHoldCount = useCountUp(statusBreakdown?.['Medical Hold'] ?? 0);
+  const adoptedCount = useCountUp(statusBreakdown?.['Adopted'] ?? 0);
 
   const fetchAvailableAnimals = async () => {
     try {
@@ -96,17 +140,36 @@ const Animals = () => {
     }
   };
 
-  const fetchDashboardStats = async () => {
+  const fetchAnimalStatsBreakdown = async (isBackgroundUpdate = false) => {
     try {
+      if (isBackgroundUpdate) {
+        setIsUpdating(true);
+      }
       const API_BASE = process.env.REACT_APP_API_URL || '/api';
-      const res = await fetch(`${API_BASE}/stats/dashboard`);
-      if (!res.ok) return;
+      const url = `${API_BASE}/animals/stats/breakdown`;
+      console.log('Fetching breakdown from:', url);
+      const res = await fetch(url);
+      console.log('Breakdown response status:', res.status);
+      if (!res.ok) {
+        console.error('Breakdown fetch failed with status:', res.status);
+        return;
+      }
       const data = await res.json();
-      if (data && data.stats && typeof data.stats.adoptionsThisMonth === 'number') {
-        setAdoptionsThisMonth(data.stats.adoptionsThisMonth);
+      console.log('Breakdown data received:', data);
+      if (data) {
+        setStatusBreakdown(data);
+        setLastUpdated(new Date());
+        if (isBackgroundUpdate) {
+          setStatsJustUpdated(true);
+          setTimeout(() => setStatsJustUpdated(false), 3000);
+        }
       }
     } catch (err) {
-      console.error('Error fetching dashboard stats:', err);
+      console.error('Error fetching animal stats breakdown:', err);
+    } finally {
+      if (isBackgroundUpdate) {
+        setIsUpdating(false);
+      }
     }
   };
 
@@ -162,6 +225,17 @@ const Animals = () => {
     }
     
     console.log('Quiz completed:', { recommendations, answers });
+  };
+
+  // Format the last updated time
+  const getTimeAgo = (date) => {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return 'today';
   };
 
   const AdoptionModal = ({ animal, onClose }) => {
@@ -525,32 +599,59 @@ const Animals = () => {
       <UrgentAlertBanner />
   {/* Enhanced Hero Section */}
   <StickyActionButton />
-      {/* Adoption Stats Section */}
-      <section className="bg-white py-8 border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-2xl font-bold text-blue-800 mb-2">Our Impact</h2>
-            <p className="text-gray-700 mb-2">Transparency matters. Here’s how your support changes lives:</p>
-          </div>
-          <div className="flex flex-wrap gap-8 justify-center md:justify-end">
-            <div className="bg-blue-50 rounded-lg p-4 shadow text-center min-w-[120px]">
-              <div className="text-3xl font-bold text-blue-700 mb-1">{adoptionsThisMonth !== null ? adoptionsThisMonth : animals.filter(a => a.isRecentlyAdopted).length}</div>
-              <div className="text-sm text-blue-900">Adoptions<br />This Month</div>
-            </div>
-            <div className="bg-green-50 rounded-lg p-4 shadow text-center min-w-[120px]">
-              <div className="text-3xl font-bold text-green-700 mb-1">{animals.filter(a => a.isFosterEligible).length}</div>
-              <div className="text-sm text-green-900">Foster-Eligible<br />Animals</div>
-            </div>
-            <div className="bg-yellow-50 rounded-lg p-4 shadow text-center min-w-[120px]">
-              <div className="text-3xl font-bold text-yellow-700 mb-1">{animals.length}</div>
-              <div className="text-sm text-yellow-900">Total<br />Animals</div>
-            </div>
-            <div className="bg-purple-50 rounded-lg p-4 shadow text-center min-w-[120px]">
-              <div className="text-3xl font-bold text-purple-700 mb-1">
-                {animals.length > 0 ? Math.round((animals.filter(a => a.isRecentlyAdopted).length / animals.length) * 100) : 0}%
+      {/* Adoption Stats Section - LIVE DATA */}
+      <section className="bg-gradient-to-r from-blue-50 to-indigo-50 py-12 border-b-2 border-blue-300">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex-1 text-center md:text-left mb-6">
+            <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+              <h2 className="text-2xl font-bold text-blue-800">Our Impact</h2>
+              {/* Live indicator badge */}
+              <div className="flex items-center gap-2 bg-green-100 border border-green-400 px-3 py-1 rounded-full">
+                <span className="relative flex h-3 w-3">
+                  <span className={`${isUpdating ? 'animate-ping' : ''} absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75`}></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span className="text-xs font-semibold text-green-800 uppercase tracking-wide">Live</span>
               </div>
-              <div className="text-sm text-purple-900">Adoption<br />Success Rate</div>
+              {statsJustUpdated && (
+                <span className="text-xs text-green-600 font-medium animate-pulse">
+                  ✓ Updated
+                </span>
+              )}
             </div>
+            <p className="text-gray-700 mb-1">Transparency matters. Here's how your support changes lives:</p>
+          </div>
+          <div className="flex flex-wrap gap-6 justify-center md:justify-end" aria-live="polite">
+            {statusBreakdown ? (
+              <>
+                <div className={`bg-blue-50 rounded-lg p-4 shadow text-center min-w-[110px] transition-all duration-300 ${statsJustUpdated ? 'ring-2 ring-blue-400 shadow-lg' : ''}`}>
+                  <div className="text-3xl font-bold text-blue-700 mb-1">{availableCount}</div>
+                  <div className="text-sm text-blue-900">Available</div>
+                </div>
+                <div className={`bg-green-50 rounded-lg p-4 shadow text-center min-w-[110px] transition-all duration-300 ${statsJustUpdated ? 'ring-2 ring-green-400 shadow-lg' : ''}`}>
+                  <div className="text-3xl font-bold text-green-700 mb-1">{fosterCount}</div>
+                  <div className="text-sm text-green-900">Foster</div>
+                </div>
+                <div className={`bg-orange-50 rounded-lg p-4 shadow text-center min-w-[110px] transition-all duration-300 ${statsJustUpdated ? 'ring-2 ring-orange-400 shadow-lg' : ''}`}>
+                  <div className="text-3xl font-bold text-orange-700 mb-1">{medicalHoldCount}</div>
+                  <div className="text-sm text-orange-900">Medical<br />Hold</div>
+                </div>
+                <div className={`bg-purple-50 rounded-lg p-4 shadow text-center min-w-[110px] transition-all duration-300 ${statsJustUpdated ? 'ring-2 ring-purple-400 shadow-lg' : ''}`}>
+                  <div className="text-3xl font-bold text-purple-700 mb-1">{adoptedCount}</div>
+                  <div className="text-sm text-purple-900">Adopted</div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-gray-500 py-4">
+                <div className="inline-flex items-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Loading live data...
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

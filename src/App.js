@@ -17,6 +17,8 @@ import BlogDetail from './pages/BlogDetail';
 import About from './pages/About';
 import Volunteer from './pages/Volunteer';
 import Merch from './pages/Merch';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 
 import Monthly from './pages/Monthly';
 import Dashboard from './pages/Dashboard';
@@ -27,9 +29,10 @@ function App() {
       <AuthProvider>
         <Router>
           <ScrollToTop />
-          <div className="min-h-screen bg-gray-50 flex flex-col">
+          <div className="min-h-screen bg-gray-50 flex flex-col overflow-x-hidden max-w-full">
             <Navbar />
-            <main className="flex-grow">
+            {/* Main content area - no pt-16 needed since sticky nav doesn't take space from flow */}
+            <main className="flex-grow w-full max-w-full overflow-x-hidden">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/animals" element={<Animals />} />
@@ -46,6 +49,8 @@ function App() {
                 <Route path="/monthly" element={<Monthly />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/foster" element={<FosterAnimals />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
               </Routes>
             </main>
             <Footer />

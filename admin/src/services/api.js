@@ -111,6 +111,8 @@ export const apiService = {
     subscribe: (email) => api.post('/newsletter/subscribe', { email }),
     unsubscribe: (email) => api.post('/newsletter/unsubscribe', { email }),
     getSubscribers: (params = {}) => api.get('/newsletter/subscribers', { params }),
+    deleteSubscriber: (id) => api.delete(`/newsletter/subscribers/${id}`),
+    sendBroadcast: (data) => api.post('/newsletter/broadcast', data),
   },
 
   // Volunteers
@@ -163,6 +165,19 @@ export const apiService = {
     create: (data) => api.post('/sponsors', data),
     update: (id, data) => api.put(`/sponsors/${id}`, data),
     delete: (id) => api.delete(`/sponsors/${id}`)
+  },
+
+  // Admin-specific endpoints for funding needs and impact stats
+  admin: {
+    // Funding Needs
+    getFundingNeeds: () => api.get('/admin/funding-needs'),
+    createFundingNeed: (data) => api.post('/admin/funding-needs', data),
+    updateFundingNeed: (id, data) => api.put(`/admin/funding-needs/${id}`, data),
+    deleteFundingNeed: (id) => api.delete(`/admin/funding-needs/${id}`),
+    
+    // Impact Stats (for donate page)
+    getImpactStats: () => api.get('/admin/impact-stats'),
+    updateImpactStats: (data) => api.put('/admin/impact-stats', data),
   },
 };
 

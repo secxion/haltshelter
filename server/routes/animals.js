@@ -60,6 +60,27 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Public: status breakdown for animals (keep before /:id so it isn't captured by the param route)
+router.get('/stats/breakdown', async (req, res) => {
+  try {
+    const stats = await Animal.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const allStatuses = ['Available', 'Adopted', 'Pending', 'Medical Hold', 'Foster', 'Not Available'];
+    const breakdown = Object.fromEntries(allStatuses.map(s => [s, 0]));
+    stats.forEach(s => {
+      breakdown[s._id] = s.count;
+    });
+
+    console.log('🐾 Animal stats breakdown:', breakdown);
+    res.json(breakdown);
+  } catch (error) {
+    console.error('Error fetching public animal stats breakdown:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch animal stats', details: error.message });
+  }
+});
+
 // Get single animal by ID
 // Get single animal by ID
 router.get('/:id', optionalAuth, async (req, res) => {

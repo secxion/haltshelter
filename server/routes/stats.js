@@ -72,6 +72,30 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
+// GET /api/stats/impact - Get impact stats for donate page
+router.get('/impact', async (req, res) => {
+  try {
+    const adminStats = await Stats.getCurrentStats();
+    
+    res.json({
+      success: true,
+      impact: {
+        rescuedThisMonth: adminStats?.rescuedThisMonth ?? 0,
+        adoptionsThisMonth: adminStats?.adoptionsThisMonth ?? 0,
+        medicalTreatments: adminStats?.medicalTreatments ?? 0,
+        spayNeuterCount: adminStats?.spayNeuterCount ?? 0,
+        lastUpdated: adminStats?.lastUpdated ?? new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching impact stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch impact statistics'
+    });
+  }
+});
+
 // Get recent activity
 router.get('/recent-activity', async (req, res) => {
   try {
